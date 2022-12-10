@@ -4,7 +4,7 @@ const LCG_MULTIPLIER = 0x5D588B65;
 const ADD_T1 = 0x269EC3;
 
 //2^32
-const MODULUS = 0x100000000;
+//const MODULUS = 0x100000000;
 
 function dec2bin(dec: number) 
 {

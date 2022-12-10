@@ -1,13 +1,24 @@
 {
 	"compilerOptions": {                        
 	  "target": "es6",                               
-	  "module": "commonjs",                           
+	  "module": "esnext",                           
 	  "outDir": "./dist",                             
+	  "declaration": true, // output .d.ts files for consumers
+	  "sourceMap": true, // output .js.map sourcemap files for consumers
 	  "rootDir": "./src",                             
 	  "strict": true,
+	  "noImplicitReturns": true,
+	  "noFallthroughCasesInSwitch": true,
+	  "noUnusedLocals": true,
+	  "noUnusedParameters": true,
 	  "moduleResolution": "node",
+	  "jsx": "react",
 	  "esModuleInterop": true,                       
+	  "skipLibCheck": true,
+	  "forceConsistentCasingInFileNames": true,
+	  "downlevelIteration": true,
 	},
+	"include": ["src"],
 	"exclude":[
 	  "./node_modules"
 	]

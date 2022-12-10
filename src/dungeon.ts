@@ -131,8 +131,6 @@ function InitDungeonGrid(grid_size_x: number, grid_size_y: number)
 		}
 	}
 
-	console.log("InitDungeonGrid: FloorSize - " + statusData.floor_size);
-
 	for (let x = 0; x < grid_size_x; x++) 
 	{
 		for (let y = 0; y < grid_size_y; y++) 
@@ -181,8 +179,6 @@ function AssignRooms(grid: GridCell[][], grid_size_x: number, grid_size_y: numbe
 	else {
 		number_of_rooms += extraRooms;
 	}
-
-	console.log("AssignRooms: number_of_rooms: " + number_of_rooms);
 
 	let random_room_bits: boolean[] = Array(256);
 
@@ -233,8 +229,6 @@ function AssignRooms(grid: GridCell[][], grid_size_x: number, grid_size_y: numbe
 				grid[x][y].is_room = false;
 			}
 
-			console.log("Assigned grid[" + x + "][" + y + "].is_room = " + grid[x][y].is_room);
-
 			counter++;
 		}
 	}
@@ -244,8 +238,6 @@ function AssignRooms(grid: GridCell[][], grid_size_x: number, grid_size_y: numbe
 
 	let attempts = 0;
 	let enoughRooms = false;
-
-	console.log("AssignRooms - Less than 2 rooms!");
 
 	while (attempts < 200 && !enoughRooms) 
 	{
@@ -257,7 +249,6 @@ function AssignRooms(grid: GridCell[][], grid_size_x: number, grid_size_y: numbe
 
 				if (dungeonRand.RandInt(100) < 60) {
 					grid[x][y].is_room = true;
-					console.log("Assigned grid[" + x + "][" + y + "].is_room = " + grid[x][y].is_room);
 					enoughRooms = true;
 					break;
 				}
@@ -327,8 +318,6 @@ function CreateRoomsAndAnchors(grid: GridCell[][], grid_size_x: number, grid_siz
 				grid[x][y].end_x = pt_x + 1;
 				grid[x][y].end_y = pt_y + 1;
 
-				console.log("grid[" + x + "][" + y + "] Hallway Anchor: x: (" + grid[x][y].start_x + ", " + grid[x][y].end_x + "), y: (" + grid[x][y].start_y + ", " + grid[x][y].end_y + ")");
-
 				//Flag the tile as open to serve as a hallway anchor
 				dungeonData.list_tiles[pt_x][pt_y].terrain_flags.terrain_type = TerrainType.TERRAIN_NORMAL;
 
@@ -369,8 +358,6 @@ function CreateRoomsAndAnchors(grid: GridCell[][], grid_size_x: number, grid_siz
 				grid[x][y].start_y = start_y;
 				grid[x][y].end_x = end_x;
 				grid[x][y].end_y = end_y;
-
-				console.log("grid[" + x + "][" + y + "] Room: x: (" + grid[x][y].start_x + ", " + grid[x][y].end_x + "), y: (" + grid[x][y].start_y + ", " + grid[x][y].end_y + ")");
 
 				for (let room_x = start_x; room_x < end_x; room_x++) {
 					for (let room_y = start_y; room_y < end_y; room_y++) {
@@ -483,7 +470,6 @@ function AssignGridCellConnections(grid: GridCell[][], grid_size_x: number, grid
 		//Set the connection, then move in that direction
 		if(direction == CardinalDirection.DIR_RIGHT && !grid[cursor_x + 1][cursor_y].is_invalid)
 		{
-			console.log("grid[" + cursor_x + "][" + cursor_y + "] connected to the right");
 			grid[cursor_x][cursor_y].connected_to_right = true;
 			grid[cursor_x + 1][cursor_y].connected_to_left = true;
 
@@ -491,7 +477,6 @@ function AssignGridCellConnections(grid: GridCell[][], grid_size_x: number, grid
 		}
 		else if(direction == CardinalDirection.DIR_UP && !grid[cursor_x][cursor_y - 1].is_invalid)
 		{
-			console.log("grid[" + cursor_x + "][" + cursor_y + "] connected to the top");
 			grid[cursor_x][cursor_y].connected_to_top = true;
 			grid[cursor_x][cursor_y - 1].connected_to_bottom = true;
 
@@ -499,7 +484,6 @@ function AssignGridCellConnections(grid: GridCell[][], grid_size_x: number, grid
 		}
 		else if(direction == CardinalDirection.DIR_LEFT && !grid[cursor_x - 1][cursor_y].is_invalid)
 		{
-			console.log("grid[" + cursor_x + "][" + cursor_y + "] connected to the left");
 			grid[cursor_x][cursor_y].connected_to_left = true;
 			grid[cursor_x - 1][cursor_y].connected_to_right = true;
 
@@ -507,7 +491,6 @@ function AssignGridCellConnections(grid: GridCell[][], grid_size_x: number, grid
 		}
 		else if(direction == CardinalDirection.DIR_DOWN && !grid[cursor_x][cursor_y + 1].is_invalid)
 		{
-			console.log("grid[" + cursor_x + "][" + cursor_y + "] connected to the bottom");
 			grid[cursor_x][cursor_y].connected_to_bottom = true;
 			grid[cursor_x][cursor_y + 1].connected_to_top = true;
 
@@ -2869,7 +2852,6 @@ function GenerateSecondaryStructures(grid: GridCell[][], grid_size_x: number, gr
  */
 function GenerateStandardFloor(grid_size_x: number, grid_size_y: number, floor_props: FloorProperties) 
 {
-	console.log("Initial Reset Floor");
 	PrintMap(dungeonData.list_tiles, map_list_x, map_list_y);
 
 	const { list_x, list_y } = GetGridPositions(grid_size_x, grid_size_y);
@@ -2879,17 +2861,13 @@ function GenerateStandardFloor(grid_size_x: number, grid_size_y: number, floor_p
 
 	let grid = InitDungeonGrid(grid_size_x, grid_size_y);
 
-	console.log("GetGridPositions");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
-
-	console.log("grid_size_x: " + grid_size_x + ", grid_size_y: " + grid_size_y);
+	ReportCurrentDungeonState("Initialiize Dungeon Grid");
 
 	AssignRooms(grid, grid_size_x, grid_size_y, floor_props.room_density);
 
 	CreateRoomsAndAnchors(grid, grid_size_x, grid_size_y, list_x, list_y, floor_props.room_flags);
 
-	console.log("CreateRoomsAndAnchors");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Assign and Create Rooms and Anchors");
 	
 	const cursor_x = dungeonRand.RandInt(grid_size_x);
 	const cursor_y = dungeonRand.RandInt(grid_size_y);
@@ -2898,32 +2876,29 @@ function GenerateStandardFloor(grid_size_x: number, grid_size_y: number, floor_p
 
 	CreateGridCellConnections(grid, grid_size_x, grid_size_y, list_x, list_y, false);
 
-	console.log("CreateGridCellConnections");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Assign and Create Grid Cell Connections");
 	
 	EnsureConnectedGrid(grid, grid_size_x, grid_size_y, list_x, list_y);
 
-	console.log("EnsureConnectedGrid");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Ensure Grid is Connected");
 	
 	GenerateMazeRoom(grid, grid_size_x, grid_size_y, floor_props.maze_room_chance);
 	GenerateKecleonShop(grid, grid_size_x, grid_size_y, statusData.kecleon_shop_chance);
 	GenerateMonsterHouse(grid, grid_size_x, grid_size_y, statusData.monster_house_chance);
 
-	console.log("MazeRoom, KecleonShop, MonsterHouse");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Generate Maze Room, Kecleon Shop, and Monster House");
 
 	GenerateExtraHallways(grid, grid_size_x, grid_size_y, floor_props.num_extra_hallways);
 
-	console.log("GenerateExtraHallways");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Generate Extra Hallways");
 
 	GenerateRoomImperfections(grid, grid_size_x, grid_size_y);
 
+	ReportCurrentDungeonState("Generate Room Imperfections");
+
 	GenerateSecondaryStructures(grid, grid_size_x, grid_size_y);
 
-	console.log("GenerateSecondaryStructures");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Generate Secondary Structures");
 }
 
 /**
@@ -2954,9 +2929,6 @@ function GenerateOneRoomMonsterHouseFloor()
 	}
 
 	GenerateMonsterHouse(grid, 1, 1, 999);
-
-	console.log("GenerateOneRoomMonsterHouseFloor");
-	PrintMap(dungeonData.list_tiles, map_list_x, map_list_y);
 }
 
 /**
@@ -2977,8 +2949,7 @@ function GenerateOuterRingFloor(floor_props: FloorProperties)
 
 	let grid = InitDungeonGrid(grid_size_x, grid_size_y);
 
-	console.log("InitDungeonGrid");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Initialize Dungeon Grid");
 
 	//Mark the outer ring as not being rooms
 	for(let x = 0; x < grid_size_x; x++)
@@ -3051,8 +3022,7 @@ function GenerateOuterRingFloor(floor_props: FloorProperties)
 		}
 	}
 
-	console.log("Initialized Outer Rings Setup");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Initialize Setup for Outer Rings");
 
 	grid[0][0].connected_to_right = true;
 	grid[1][0].connected_to_left = true;
@@ -3092,26 +3062,20 @@ function GenerateOuterRingFloor(floor_props: FloorProperties)
 
 	AssignGridCellConnections(grid, grid_size_x, grid_size_x, cursor_x, cursor_y, floor_props);
 	CreateGridCellConnections(grid, grid_size_x, grid_size_y, list_x, list_y, false);
-
-	console.log("CreateGridCellConnections");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Assign and Create Grid Cell Connections");
 
 	EnsureConnectedGrid(grid, grid_size_x, grid_size_y, list_x, list_y);
-
-	console.log("EnsureConnectedGrid");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Ensure Grid is Connected");
 
 	GenerateKecleonShop(grid, grid_size_x, grid_size_y, statusData.kecleon_shop_chance);
 	GenerateMonsterHouse(grid, grid_size_x, grid_size_y, statusData.monster_house_chance);
-	GenerateExtraHallways(grid, grid_size_x, grid_size_y, floor_props.num_extra_hallways);
+	ReportCurrentDungeonState("Generate Kecleon Shop and Monster House");
 
-	console.log("GenerateExtraHallways");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	GenerateExtraHallways(grid, grid_size_x, grid_size_y, floor_props.num_extra_hallways);
+	ReportCurrentDungeonState("Generate Extra Hallways");
 
 	GenerateRoomImperfections(grid, grid_size_x, grid_size_y);
-
-	console.log("GenerateRoomImperfections");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Generate Room Imperfections");
 }
  
 /**
@@ -3133,8 +3097,7 @@ function GenerateCrossroadsFloor(floor_props: FloorProperties)
 
 	let grid = InitDungeonGrid(grid_size_x, grid_size_y);
 
-	console.log("InitDungeonGrid");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Initialize Dungeon Grid");
 
 	//Mark the outer ring as rooms
 	for(let x = 0; x < grid_size_x; x++)
@@ -3233,30 +3196,25 @@ function GenerateCrossroadsFloor(floor_props: FloorProperties)
 		}
 	}
 
-	console.log("Initialized Crossroads Setup");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Initialized Setup for Crossroads");
 
 	CreateGridCellConnections(grid, grid_size_x, grid_size_y, list_x, list_y, true);
 
-	console.log("CreateGridCellConnections");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Create Grid Cell Connections");
 
 	EnsureConnectedGrid(grid, grid_size_x, grid_size_y, list_x, list_y);
 
-	console.log("EnsureConnectedGrid");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Ensure Grid is Connected");
 
 	GenerateKecleonShop(grid, grid_size_x, grid_size_y, statusData.kecleon_shop_chance);
 	GenerateMonsterHouse(grid, grid_size_x, grid_size_y, statusData.monster_house_chance);
-	GenerateExtraHallways(grid, grid_size_x, grid_size_y, floor_props.num_extra_hallways);
+	ReportCurrentDungeonState("Generate Kecleon Shop and Monster House");
 
-	console.log("GenerateExtraHallways");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	GenerateExtraHallways(grid, grid_size_x, grid_size_y, floor_props.num_extra_hallways);
+	ReportCurrentDungeonState("Generate Extra Hallways");
 
 	GenerateRoomImperfections(grid, grid_size_x, grid_size_y);
-
-	console.log("GenerateRoomImperfections");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Generate Room Imperfections");
 }
 
 /**
@@ -3275,8 +3233,7 @@ function GenerateTwoRoomsWithMonsterHouseFloor()
 
 	let grid = InitDungeonGrid(grid_size_x, grid_size_y);
 
-	console.log("InitDungeonGrid");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Initialize Dungeon Grid");
 
 	let cur_room_index = 0;
 	const y = 0;
@@ -3307,17 +3264,16 @@ function GenerateTwoRoomsWithMonsterHouseFloor()
 		cur_room_index++;
 	}
 
-	console.log("Setup Two Rooms With Monster House Floor");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Setup Two Rooms With Monster House Floor");
 
 	grid[0][0].connected_to_right = true;
 	grid[1][0].connected_to_left = true;
 
 	CreateGridCellConnections(grid, grid_size_x, grid_size_y, list_x, list_y, false);
-	GenerateMonsterHouse(grid, grid_size_x, grid_size_y, 999);
+	ReportCurrentDungeonState("Create Grid Cell Connections");
 
-	console.log("CreateGridCellConnections (and GenerateMonsterHouse)");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	GenerateMonsterHouse(grid, grid_size_x, grid_size_y, 999);
+	ReportCurrentDungeonState("Generate Monster House");
 }
 
 /**
@@ -3335,38 +3291,31 @@ function GenerateLineFloor(floor_props: FloorProperties)
 	map_list_y = list_y;
 
 	let grid = InitDungeonGrid(grid_size_x, grid_size_y);
-
-	console.log("InitDungeonGrid");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Initialize Dungeon Grid");
 
 	AssignRooms(grid, grid_size_x, grid_size_y, floor_props.room_density);
 	CreateRoomsAndAnchors(grid, grid_size_x, grid_size_y, list_x, list_y, floor_props.room_flags);
-
-	console.log("CreateRoomsAndAnchors");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Assign and Create Rooms and Anchors");
 
 	const cursor_x = dungeonRand.RandInt(grid_size_x);
 	const cursor_y = dungeonRand.RandInt(grid_size_y);
 
 	AssignGridCellConnections(grid, grid_size_x, grid_size_y, cursor_x, cursor_y, floor_props);
 	CreateGridCellConnections(grid, grid_size_x, grid_size_y, list_x, list_y, true);
-
-	console.log("CreateGridCellConnections");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Assign and Create Grid Cell Connections");
 
 	EnsureConnectedGrid(grid, grid_size_x, grid_size_y, list_x, list_y);
-
-	console.log("EnsureConnectedGrid");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Ensure Grid is Connected");
 
 	GenerateKecleonShop(grid, grid_size_x, grid_size_y, statusData.kecleon_shop_chance);
 	GenerateMonsterHouse(grid, grid_size_x, grid_size_y, statusData.monster_house_chance);
+	ReportCurrentDungeonState("Generate Kecleon Shop and Monster House");
 
 	GenerateExtraHallways(grid, grid_size_x, grid_size_y, floor_props.num_extra_hallways);
-	GenerateRoomImperfections(grid, grid_size_x, grid_size_y);
+	ReportCurrentDungeonState("Generate Extra Hallways");
 
-	console.log("KecleonShop, MonsterHouse, ExtraHallways, RoomImperfections");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	GenerateRoomImperfections(grid, grid_size_x, grid_size_y);
+	ReportCurrentDungeonState("Generate Room Imperfections");
 }
 
 /**
@@ -3384,9 +3333,7 @@ function GenerateCrossFloor(floor_props: FloorProperties)
 	map_list_y = list_y;
 
 	let grid = InitDungeonGrid(grid_size_x, grid_size_y);
-
-	console.log("InitDungeonGrid");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Initialize Dungeon Grid");
 
 	//Set all cells as rooms
 	for(let x = 0; x < grid_size_x; x++)
@@ -3404,9 +3351,7 @@ function GenerateCrossFloor(floor_props: FloorProperties)
 	grid[grid_size_x - 1][grid_size_y - 1].is_invalid = true;
 
 	CreateRoomsAndAnchors(grid, grid_size_x, grid_size_y, list_x, list_y, floor_props.room_flags);
-
-	console.log("CreateRoomsAndAnchors");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Create Rooms and Anchors");
 
 	grid[1][0].connected_to_bottom = true;
 	grid[1][1].connected_to_top = true;
@@ -3418,23 +3363,19 @@ function GenerateCrossFloor(floor_props: FloorProperties)
 	grid[2][1].connected_to_left = true;
 
 	CreateGridCellConnections(grid, grid_size_x, grid_size_y, list_x, list_y, true);
-
-	console.log("CreateGridCellConnections");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Create Grid Cell Connections");
 
 	EnsureConnectedGrid(grid, grid_size_x, grid_size_y, list_x, list_y);
-
-	console.log("EnsureConnectedGrid");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Ensure Grid is Connected");
 
 	GenerateKecleonShop(grid, grid_size_x, grid_size_y, statusData.kecleon_shop_chance);
 	GenerateMonsterHouse(grid, grid_size_x, grid_size_y, statusData.monster_house_chance);
 
 	GenerateExtraHallways(grid, grid_size_x, grid_size_y, floor_props.num_extra_hallways);
-	GenerateRoomImperfections(grid, grid_size_x, grid_size_y);
+	ReportCurrentDungeonState("Generate Extra Hallways");
 
-	console.log("KecleonShop, MonsterHouse, ExtraHallways, RoomImperfections");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	GenerateRoomImperfections(grid, grid_size_x, grid_size_y);
+	ReportCurrentDungeonState("Generate Room Imperfections");
 }
 
 /**
@@ -3491,8 +3432,7 @@ function GenerateBeetleFloor(floor_props: FloorProperties)
 
 	let grid = InitDungeonGrid(grid_size_x, grid_size_y);
 
-	console.log("InitDungeonGrid");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Initialize Dungeon Grid");
 
 	//Set all cells as rooms
 	for(let x = 0; x < grid_size_x; x++)
@@ -3504,9 +3444,7 @@ function GenerateBeetleFloor(floor_props: FloorProperties)
 	}
 
 	CreateRoomsAndAnchors(grid, grid_size_x, grid_size_y, list_x, list_y, floor_props.room_flags);
-
-	console.log("CreateRoomsAndAnchors");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Assign and Create Rooms and Anchors");
 
 	//Connect rooms in the same row together
 	for(let y = 0; y < grid_size_y; y++)
@@ -3518,30 +3456,26 @@ function GenerateBeetleFloor(floor_props: FloorProperties)
 	}
 
 	CreateGridCellConnections(grid, grid_size_x, grid_size_y, list_x, list_y, true);
-
-	console.log("CreateGridCellConnections");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Create Grid Cell Connections");
 
 	//Merge the center column into one large room
 	MergeRoomsVertically(1, 0, 1, grid);
 	MergeRoomsVertically(1, 0, 2, grid);
-
-	console.log("MergeRoomsVertically");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Merge Rooms Vertically");
 
 	EnsureConnectedGrid(grid, grid_size_x, grid_size_y, list_x, list_y);
 
-	console.log("EnsureConnectedGrid");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Ensure Grid is Connected");
 
 	GenerateKecleonShop(grid, grid_size_x, grid_size_y, statusData.kecleon_shop_chance);
 	GenerateMonsterHouse(grid, grid_size_x, grid_size_y, statusData.monster_house_chance);
+	ReportCurrentDungeonState("Generate Kecleon Shop and Monster House");
 
 	GenerateExtraHallways(grid, grid_size_x, grid_size_y, floor_props.num_extra_hallways);
-	GenerateRoomImperfections(grid, grid_size_x, grid_size_y);
+	ReportCurrentDungeonState("Generate Extra Hallways");
 
-	console.log("KecleonShop, MonsterHouse, ExtraHallways, RoomImperfections");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	GenerateRoomImperfections(grid, grid_size_x, grid_size_y);
+	ReportCurrentDungeonState("Generate Room Imperfections");
 }
 
 /**
@@ -3552,15 +3486,11 @@ function GenerateBeetleFloor(floor_props: FloorProperties)
  */
 function GenerateOuterRoomsFloor(grid_size_x: number, grid_size_y: number, floor_props: FloorProperties)
 {
-	console.log("Initial Reset Floor");
-	PrintMap(dungeonData.list_tiles, map_list_x, map_list_y);
-
 	let { list_x, list_y } = GetGridPositions(grid_size_x, grid_size_y);
 
 	let grid = InitDungeonGrid(grid_size_x, grid_size_y);
 
-	console.log("GetGridPositions");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Initialize Dungeon Grid");
 
 	//Make all cells rooms
 	for(let x = 0; x < grid_size_x; x++)
@@ -3581,9 +3511,7 @@ function GenerateOuterRoomsFloor(grid_size_x: number, grid_size_y: number, floor
 	}
 
 	CreateRoomsAndAnchors(grid, grid_size_x, grid_size_y, list_x, list_y, floor_props.room_flags);
-
-	console.log("CreateRoomsAndAnchors");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Assign and Create Rooms and Anchors");
 	
 	if(advancedGenerationSettings.fix_generate_outer_rooms_floor_error)
 	{
@@ -3666,34 +3594,24 @@ function GenerateOuterRoomsFloor(grid_size_x: number, grid_size_y: number, floor
 	}
 
 	CreateGridCellConnections(grid, grid_size_x, grid_size_y, list_x, list_y, false);
-
-	console.log("CreateGridCellConnections");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Create Grid Cell Connections");
 	
 	EnsureConnectedGrid(grid, grid_size_x, grid_size_y, list_x, list_y);
-
-	console.log("EnsureConnectedGrid");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
-	
+	ReportCurrentDungeonState("Ensure Grid is Connected");
 	
 	GenerateMazeRoom(grid, grid_size_x, grid_size_y, floor_props.maze_room_chance);
 	GenerateKecleonShop(grid, grid_size_x, grid_size_y, statusData.kecleon_shop_chance);
 	GenerateMonsterHouse(grid, grid_size_x, grid_size_y, statusData.monster_house_chance);
-
-	console.log("MazeRoom, KecleonShop, MonsterHouse");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Generate Maze Room, Kecleon Shop, Monster House");
 
 	GenerateExtraHallways(grid, grid_size_x, grid_size_y, floor_props.num_extra_hallways);
-
-	console.log("GenerateExtraHallways");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Generate Extra Hallways");
 
 	GenerateRoomImperfections(grid, grid_size_x, grid_size_y);
+	ReportCurrentDungeonState("Generate Room Imperfections");
 
 	GenerateSecondaryStructures(grid, grid_size_x, grid_size_y);
-
-	console.log("GenerateSecondaryStructures");
-	PrintMap(dungeonData.list_tiles, list_x, list_y);
+	ReportCurrentDungeonState("Generate Secondary Structures");
 }
 
 /**
@@ -5299,7 +5217,6 @@ function GenerateFloor(floor_props: FloorProperties): Tile[][]
 			}
 
 			//This layout is bad! We need to try again
-			console.log("Bad layout!! Retrying");
 		}
 		
 		//If we fail to generate a layout in 10 attempts, just abort and make a one-room Monster House
@@ -5316,8 +5233,7 @@ function GenerateFloor(floor_props: FloorProperties): Tile[][]
 			GenerateSecondaryTerrainFormations(true, floor_props);
 		}
 
-		console.log("FinalizeJunctions, GenerateSecondaryTerrainFormations");
-		PrintMap(dungeonData.list_tiles, map_list_x, map_list_y);
+		ReportCurrentDungeonState("Finalize Junctions and Generate Secondary Terrain Formations");
 
 		let is_empty_monster_house = (dungeonRand.RandInt(100) < floor_props.itemless_monster_house_chance);
 		
@@ -5326,8 +5242,7 @@ function GenerateFloor(floor_props: FloorProperties): Tile[][]
 		
 		ResolveInvalidSpawns(); //Make sure multiple flags aren't set for one tile
 
-		console.log("SpawnNonEnemies, SpawnEnemies, ResolveInvalidSpawns");
-		PrintMap(dungeonData.list_tiles, map_list_x, map_list_y);
+		ReportCurrentDungeonState("Spawn Entities and Resolve Invalid Spawns");
 		
 		if (dungeonGenerationInfo.player_spawn_x != -1 && dungeonGenerationInfo.player_spawn_y != -1) {
 			// This is for normal fixed rooms, we don't need to validate the stairs in this scenario
@@ -5340,7 +5255,6 @@ function GenerateFloor(floor_props: FloorProperties): Tile[][]
 			}
 
 			//Something went bad with spawns, we'll need to retry on a new generation
-			console.log("Bad spawns!! Retrying");
 		}
 
 		//If we fail with spawns (or otherwise) 10 times, opt for a One-Room Monster House generation
@@ -5361,14 +5275,20 @@ function GenerateFloor(floor_props: FloorProperties): Tile[][]
 		}
 	}
 
-	console.log("Successful floor layout!!!");
-
-	console.log("Final Layout");
-	PrintMap(dungeonData.list_tiles, map_list_x, map_list_y);
+	ReportCurrentDungeonState("Finished Layout");
 
 	//TODO: Integrate late GenerateFloor operations
 
 	return dungeonData.list_tiles;
+}
+
+/**
+ * ReportCurrentDungeonState - responsible for mid-generation dungeon progression if additional output is desired
+ */
+function ReportCurrentDungeonState(state_description: string)
+{
+	console.log(state_description);
+	PrintMap(dungeonData.list_tiles, map_list_x, map_list_y);
 }
 
 /**

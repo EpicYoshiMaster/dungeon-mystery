@@ -23,7 +23,7 @@ npm install dungeon-mystery
 
 ## License
 
-[GNU GPU v3](LICENSE)
+[GNU GPL v3](LICENSE)
 
 ## Sources
 
