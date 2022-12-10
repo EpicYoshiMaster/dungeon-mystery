@@ -5287,8 +5287,9 @@ function GenerateFloor(floor_props: FloorProperties): Tile[][]
  */
 function ReportCurrentDungeonState(state_description: string)
 {
+	/*
 	console.log(state_description);
-	PrintMap(dungeonData.list_tiles, map_list_x, map_list_y);
+	PrintMap(dungeonData.list_tiles, map_list_x, map_list_y);*/
 }
 
 /**
