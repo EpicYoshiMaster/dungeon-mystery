@@ -1,6 +1,6 @@
 # dungeon-mystery
 
-![npm](https://img.shields.io/npm/v/dungeon-mystery)
+[![npm](https://img.shields.io/npm/v/dungeon-mystery)](https://www.npmjs.com/package/dungeon-mystery)
  
 dungeon-mystery is a Typescript implementation of Pokémon Mystery Dungeon: Explorers of Sky's dungeon algorithm.
 
