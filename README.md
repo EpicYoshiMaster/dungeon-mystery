@@ -1,4 +1,6 @@
 # dungeon-mystery
+
+![npm](https://img.shields.io/npm/v/dungeon-mystery)
  
 dungeon-mystery is a Typescript implementation of Pokémon Mystery Dungeon: Explorers of Sky's dungeon algorithm.
 
@@ -19,7 +21,8 @@ npm install dungeon-mystery
 
 ## Usage
 
-
+This package is not yet ready for production use. 
+It is currently public for testing purposes as I learn how to integrate it into Pokemon Dungeoneer.
 
 ## License
 

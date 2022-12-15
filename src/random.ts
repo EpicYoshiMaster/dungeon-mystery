@@ -5,11 +5,11 @@ const ADD_T1 = 0x269EC3;
 
 //2^32
 //const MODULUS = 0x100000000;
-
+/*
 function dec2bin(dec: number) 
 {
 	return (dec >>> 0).toString(2);
-}
+}*/
 
 //NA: 02353570
 export class DungeonRandom {
@@ -50,7 +50,7 @@ export class DungeonRandom {
 		
 		this.preseed = secondIter;
 
-		console.log("GenerateDungeonRngSeed " + [firstIter, secondIter, (secondIter & 0xff0000) | (firstIter >> 0x10) | 1]);
+		//console.log("GenerateDungeonRngSeed " + [firstIter, secondIter, (secondIter & 0xff0000) | (firstIter >> 0x10) | 1]);
 
 		return (secondIter & 0xff0000) | (firstIter >> 0x10) | 1;
 	}
@@ -81,10 +81,10 @@ export class DungeonRandom {
 			this.seq_num_primary++;
 
 			let intermediate = (this.last_value_primary * LCG_MULTIPLIER + 1);
-			console.log("Intermediate: " + intermediate + " Binary: " + dec2bin(intermediate));
+			//console.log("Intermediate: " + intermediate + " Binary: " + dec2bin(intermediate));
 			result = intermediate & 0xFFFF0000;
 
-			console.log("New Result: " + result + " Binary: " + dec2bin(result));
+			//console.log("New Result: " + result + " Binary: " + dec2bin(result));
 			this.last_value_primary = intermediate;
 		}
 		else

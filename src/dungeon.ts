@@ -4,7 +4,7 @@ import { GridCell, Tile, FloorProperties, FloorGenerationStatus, Dungeon, Dungeo
 import { RoomFlags, StairsReachableFlags } from "./minor_types";
 import { DungeonRandom } from "./random";
 import { GenerationConstants, AdvancedGenerationSettings } from './settings';
-import { PrintMap } from "./visualization";
+//import { PrintMap } from "./visualization";
 
 const FLOOR_MAX_X = 56;
 const FLOOR_MAX_Y = 32;
@@ -22,7 +22,9 @@ let generationConstants: GenerationConstants;
 let advancedGenerationSettings: AdvancedGenerationSettings;
 
 //For map printing information
+//@ts-ignore
 let map_list_x: number[] = [];
+//@ts-ignore
 let map_list_y: number[] = [];
 
 /**
@@ -2852,8 +2854,6 @@ function GenerateSecondaryStructures(grid: GridCell[][], grid_size_x: number, gr
  */
 function GenerateStandardFloor(grid_size_x: number, grid_size_y: number, floor_props: FloorProperties) 
 {
-	PrintMap(dungeonData.list_tiles, map_list_x, map_list_y);
-
 	const { list_x, list_y } = GetGridPositions(grid_size_x, grid_size_y);
 
 	map_list_x = list_x;
@@ -5285,6 +5285,7 @@ function GenerateFloor(floor_props: FloorProperties): Tile[][]
 /**
  * ReportCurrentDungeonState - responsible for mid-generation dungeon progression if additional output is desired
  */
+// @ts-ignore
 function ReportCurrentDungeonState(state_description: string)
 {
 	/*

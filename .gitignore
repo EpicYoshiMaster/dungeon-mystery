@@ -1,3 +1,4 @@
 node_modules
 dist
 testing.ts
+.parcel-cache

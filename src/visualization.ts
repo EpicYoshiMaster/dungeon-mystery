@@ -118,7 +118,7 @@ export function PrintMap(map: Tile[][], list_x: number[], list_y: number[])
 			}
 		}
 
-		console.log(mapLine);
+		//console.log(mapLine);
 	}
 }
 
@@ -136,5 +136,5 @@ export function PrintGrid(grid: GridCell[][], grid_size_x: number, grid_size_y: 
 		}
 	}
 
-	console.log(true_grid);
+	//console.log(true_grid);
 }

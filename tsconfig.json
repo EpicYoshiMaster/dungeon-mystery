@@ -1,8 +1,8 @@
 {
 	"compilerOptions": {                        
 	  "target": "es5",                               
-	  "module": "esnext",                           
-	  "lib": ["dom", "esnext"],
+	  "module": "CommonJS",                           
+	  "lib": ["ES2015", "ES2016"],
 	  "outDir": "./dist",                             
 	  "declaration": true, // output .d.ts files for consumers
 	  "sourceMap": true, // output .js.map sourcemap files for consumers
