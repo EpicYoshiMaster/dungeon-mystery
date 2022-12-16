@@ -3784,7 +3784,7 @@ function SetSecondaryTerrainOnWall(tile: Tile)
  */
 function GenerateSecondaryTerrainFormations(test_flag: boolean, floor_props: FloorProperties)
 {
-	if(!floor_props.room_flags.f_secondary_structures || !test_flag) return;
+	if(!floor_props.room_flags.f_secondary_terrain_generation || !test_flag) return;
 
 	//Generate 1-3 "river+lake" formations
 	const num_to_gen = [1, 1, 1, 2, 2, 2, 3, 3][dungeonRand.RandInt(8)];

@@ -5,7 +5,7 @@ import { TerrainType, MissionType, MissionSubtype, MissionSubtypeChallenge } fro
  */
 export class RoomFlags
 {
-	f_secondary_structures: boolean = false; // 0x0: Are secondary structures allowed
+	f_secondary_terrain_generation: boolean = false; // 0x0: Is secondary terrain generation allowed
 	//room_flags_unk1: number; //1
 	f_room_imperfections: boolean = false; // 0x2: Are room imperfections allowed
 	//room_flags_unk3: number; //5
