@@ -78,4 +78,3 @@ export class StairsReachableFlags
 	f_in_visit_queue: boolean = false;
 	f_visited: boolean = false;
 };
-

@@ -1,10 +1,9 @@
 import * as Constants from "./constants";
-import { FloorLayout, TerrainType, DungeonObjectiveType, MissionType, MissionSubtype, MissionSubtypeOutlaw, FloorSize, FloorType, DirectionId, CardinalDirection, SecondaryStructureType, HiddenStairsType } from './enums';
+import { FloorLayout, TerrainType, DungeonObjectiveType, MissionType, MissionSubtype, MissionSubtypeOutlaw, FloorSize, FloorType, DirectionId, CardinalDirection, SecondaryStructureType, HiddenStairsType, GenerationStepLevel, GenerationType, MajorGenerationType, MinorGenerationType } from './enums';
 import { GridCell, Tile, FloorProperties, FloorGenerationStatus, Dungeon, DungeonGenerationInfo } from './key_types';
 import { RoomFlags, StairsReachableFlags } from "./minor_types";
 import { DungeonRandom } from "./random";
 import { GenerationConstants, AdvancedGenerationSettings } from './settings';
-//import { PrintMap } from "./visualization";
 
 const FLOOR_MAX_X = 56;
 const FLOOR_MAX_Y = 32;
@@ -20,12 +19,20 @@ let statusData: FloorGenerationStatus;
 let dungeonRand: DungeonRandom;
 let generationConstants: GenerationConstants;
 let advancedGenerationSettings: AdvancedGenerationSettings;
+let grid_cell_start_x: number[] = [];
+let grid_cell_start_y: number[] = [];
 
-//For map printing information
-//@ts-ignore
-let map_list_x: number[] = [];
-//@ts-ignore
-let map_list_y: number[] = [];
+let dungeonGenerationCallback: DungeonGenerationCallback;
+let generationCallbackFrequency: GenerationStepLevel;
+
+export type DungeonGenerationCallback = (
+	generation_step_level: GenerationStepLevel,
+	generation_type: GenerationType,
+	dungeon_data: Dungeon, 
+	dungeon_generation_info: DungeonGenerationInfo, 
+	floor_generation_status: FloorGenerationStatus, 
+	grid_cell_start_x: number[],
+	grid_cell_start_y: number[]) => void;
 
 /**
  * NA: 02340CAC
@@ -82,6 +89,10 @@ function ResetFloor()
 
 	//Reset Traps
 	dungeonData.active_traps = Array(64);
+
+	grid_cell_start_x = [];
+	grid_cell_start_y = [];
+	OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_RESET_FLOOR);
 }
 
 /**
@@ -152,6 +163,8 @@ function InitDungeonGrid(grid_size_x: number, grid_size_y: number)
 			grid[x][y].is_room = true;
 		}
 	}
+
+	OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_INIT_DUNGEON_GRID);
 
 	return grid;
 }
@@ -325,6 +338,8 @@ function CreateRoomsAndAnchors(grid: GridCell[][], grid_size_x: number, grid_siz
 
 				//Set the room index to 0xFE for anchor
 				dungeonData.list_tiles[pt_x][pt_y].room_index = 0xfe;
+
+				OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_CREATE_ANCHOR);
 			}
 			else {
 				//This cell is a room!
@@ -397,9 +412,13 @@ function CreateRoomsAndAnchors(grid: GridCell[][], grid_size_x: number, grid_siz
 				}
 
 				room_number++;
+
+				OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_CREATE_ROOM);
 			}
 		}
 	}
+
+	OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_CREATE_ROOMS_AND_ANCHORS);
 }
 
 /**
@@ -956,6 +975,7 @@ function CreateGridCellConnections(grid: GridCell[][], grid_size_x: number, grid
 
 					//Create the hallway
 					CreateHallway(pt_x, grid[x][y].start_y, pt2_x, grid[x][y - 1].end_y - 1, true, list_x[x], list_y[y]);
+					OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_CREATE_HALLWAY);
 				}
 
 				//Mark the connection and unassign it so we don't try to draw
@@ -985,6 +1005,7 @@ function CreateGridCellConnections(grid: GridCell[][], grid_size_x: number, grid
 
 					//Create the hallway
 					CreateHallway(pt_x, grid[x][y].end_y - 1, pt2_x, grid[x][y + 1].start_y, true, list_x[x], list_y[y + 1] - 1);
+					OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_CREATE_HALLWAY);
 				}
 
 				//Mark the connection and unassign it so we don't try to draw
@@ -1016,6 +1037,7 @@ function CreateGridCellConnections(grid: GridCell[][], grid_size_x: number, grid
 					//Using (grid[x-1][y].start_x - 1) is a bug, it should be (grid[x-1][y].end_x - 1)
 					//But CreateHallway has safety checks making the end result the same anyways.
 					CreateHallway(grid[x][y].start_x, pt_y, grid[x - 1][y].start_x - 1, pt2_y, false, list_x[x], list_y[y]);
+					OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_CREATE_HALLWAY);
 				}
 
 				//Mark the connection and unassign it so we don't try to draw
@@ -1045,6 +1067,7 @@ function CreateGridCellConnections(grid: GridCell[][], grid_size_x: number, grid
 
 					//Create the hallway
 					CreateHallway(grid[x][y].end_x - 1, pt_y, grid[x + 1][y].start_x, pt2_y, false, list_x[x + 1] - 1, list_y[y]);
+					OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_CREATE_HALLWAY);
 				}
 
 				//Mark the connection and unassign it so we don't try to draw
@@ -1059,7 +1082,11 @@ function CreateGridCellConnections(grid: GridCell[][], grid_size_x: number, grid
 	}
 
 	//If we don't want to merge rooms, we're done
-	if(disable_room_merging) return;
+	if(disable_room_merging) 
+	{
+		OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_CREATE_GRID_CELL_CONNECTIONS);
+		return;
+	} 
 
 	//If we do, we can try to merge some!
 	for(let x = 0; x < grid_size_x; x++)
@@ -1125,6 +1152,8 @@ function CreateGridCellConnections(grid: GridCell[][], grid_size_x: number, grid
 					grid[x][y].is_merged = true;
 					grid[x][y].is_connected = false;
 					grid[x][y].has_been_merged = true;
+
+					OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_MERGE_ROOM);
 				}
 				else if(chance_two == 1
 					&& y >= 1
@@ -1164,6 +1193,8 @@ function CreateGridCellConnections(grid: GridCell[][], grid_size_x: number, grid
 					grid[x][y].is_merged = true;
 					grid[x][y].is_connected = false;
 					grid[x][y].has_been_merged = true;
+
+					OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_MERGE_ROOM);
 				}
 				else if(chance_two == 2
 					&& x <= grid_size_x - 2
@@ -1203,6 +1234,8 @@ function CreateGridCellConnections(grid: GridCell[][], grid_size_x: number, grid
 					grid[x][y].is_merged = true;
 					grid[x][y].is_connected = false;
 					grid[x][y].has_been_merged = true;
+
+					OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_MERGE_ROOM);
 				}
 				else if(chance_two == 3
 					&& y <= grid_size_y - 2
@@ -1242,10 +1275,14 @@ function CreateGridCellConnections(grid: GridCell[][], grid_size_x: number, grid
 					grid[x][y].is_merged = true;
 					grid[x][y].is_connected = false;
 					grid[x][y].has_been_merged = true;
+
+					OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_MERGE_ROOM);
 				}
 			}
 		}
 	}
+
+	OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_CREATE_GRID_CELL_CONNECTIONS);
 }
 
 /**
@@ -1259,6 +1296,9 @@ function CreateGridCellConnections(grid: GridCell[][], grid_size_x: number, grid
  */
 function EnsureConnectedGrid(grid: GridCell[][], grid_size_x: number, grid_size_y: number, list_x: number[], list_y: number[])
 {
+	//Flag for OnCompleteGenerationStep to verify if any changes were actually made
+	let was_grid_changed: boolean = false;
+
 	for(let x = 0; x < grid_size_x; x++)
 	{
 		for(let y = 0; y < grid_size_y; y++)
@@ -1294,6 +1334,9 @@ function EnsureConnectedGrid(grid: GridCell[][], grid_size_x: number, grid_size_
 					grid[x][y].is_connected = true;
 					grid[x][y].connected_to_top = true;
 					grid[x][y - 1].connected_to_bottom = true;
+
+					OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_ENSURE_CONNECTED_HALLWAY);
+					was_grid_changed = true;
 				}
 				else if(y < grid_size_y - 1 && !grid[x][y + 1].is_invalid && !grid[x][y + 1].is_merged && grid[x][y + 1].is_connected)
 				{
@@ -1315,6 +1358,9 @@ function EnsureConnectedGrid(grid: GridCell[][], grid_size_x: number, grid_size_
 					grid[x][y].is_connected = true;
 					grid[x][y].connected_to_bottom = true;
 					grid[x][y + 1].connected_to_top = true;
+
+					OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_ENSURE_CONNECTED_HALLWAY);
+					was_grid_changed = true;
 				}
 				else if(x > 0 && !grid[x - 1][y].is_invalid && !grid[x - 1][y].is_merged && grid[x - 1][y].is_connected)
 				{
@@ -1337,6 +1383,9 @@ function EnsureConnectedGrid(grid: GridCell[][], grid_size_x: number, grid_size_
 					grid[x][y].is_connected = true;
 					grid[x][y].connected_to_left = true;
 					grid[x - 1][y].connected_to_right = true;
+
+					OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_ENSURE_CONNECTED_HALLWAY);
+					was_grid_changed = true;
 				}
 				else if(x < grid_size_x - 1 && !grid[x + 1][y].is_invalid && !grid[x + 1][y].is_merged && grid[x + 1][y].is_connected)
 				{
@@ -1358,6 +1407,9 @@ function EnsureConnectedGrid(grid: GridCell[][], grid_size_x: number, grid_size_
 					grid[x][y].is_connected = true;
 					grid[x][y].connected_to_right = true;
 					grid[x + 1][y].connected_to_left = true;
+
+					OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_ENSURE_CONNECTED_HALLWAY);
+					was_grid_changed = true;
 				}
 			}
 			else
@@ -1371,6 +1423,9 @@ function EnsureConnectedGrid(grid: GridCell[][], grid_size_x: number, grid_size_
 				dungeonData.list_tiles[grid[x][y].start_x][grid[x][y].start_y].spawn_or_visibility_flags.f_stairs = false;
 				dungeonData.list_tiles[grid[x][y].start_x][grid[x][y].start_y].spawn_or_visibility_flags.f_item = false;
 				dungeonData.list_tiles[grid[x][y].start_x][grid[x][y].start_y].spawn_or_visibility_flags.f_trap = false;
+
+				OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_REMOVE_UNCONNECTED_ANCHOR);
+				was_grid_changed = true;
 			}
 		}
 	}
@@ -1397,9 +1452,26 @@ function EnsureConnectedGrid(grid: GridCell[][], grid_size_x: number, grid_size_
 
 					//Set room index to 0xFF (not a room)
 					dungeonData.list_tiles[cur_x][cur_y].room_index = 0xFF;
+
+					if(grid[x][y].is_room)
+					{
+						was_grid_changed = true;
+					}
 				}
 			}
+
+			//Technicially this part of the function doesn't consider whether the grid cell is actually a room at all
+			//(If it's an anchor, nothing visibly changes besides the loss of room index)
+			if(grid[x][y].is_room)
+			{
+				OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_REMOVE_UNCONNECTED_ROOM);
+			}
 		}
+	}
+
+	if(was_grid_changed)
+	{
+		OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_ENSURE_CONNECTED_GRID);
 	}
 }
 
@@ -1694,6 +1766,7 @@ function GenerateMazeRoom(grid: GridCell[][], grid_size_x: number, grid_size_y: 
 						if(values[counter])
 						{
 							GenerateMaze(grid[x][y], false);
+							OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_GENERATE_MAZE_ROOM);
 						}
 
 						counter++;
@@ -1879,6 +1952,8 @@ function GenerateKecleonShop(grid: GridCell[][], grid_size_x: number, grid_size_
 			statusData.kecleon_shop_middle_x = Math.floor((statusData.kecleon_shop_min_x + statusData.kecleon_shop_max_x) / 2);
 			statusData.kecleon_shop_middle_y = Math.floor((statusData.kecleon_shop_min_y + statusData.kecleon_shop_max_y) / 2);
 
+			OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_GENERATE_KECLEON_SHOP);
+
 			return;
 		}
 	}
@@ -2046,6 +2121,8 @@ function GenerateMonsterHouse(grid: GridCell[][], grid_size_x: number, grid_size
 						}
 					}
 
+					OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_GENERATE_MONSTER_HOUSE);
+
 					return;
 				}
 
@@ -2088,8 +2165,12 @@ function GenerateMonsterHouse(grid: GridCell[][], grid_size_x: number, grid_size
  */
 function GenerateExtraHallways(grid: GridCell[][], grid_size_x: number, grid_size_y: number, num_extra_hallways: number)
 {
+	//Flag for OnCompletedGenerationStep to verify if an extra hallway was added to the floor
+	let added_extra_hallway: boolean = false;
+
 	for(let i = 0; i < num_extra_hallways; i++)
 	{
+
 		//Select a random grid cell
 		const x = dungeonRand.RandInt(grid_size_x);
 		const y = dungeonRand.RandInt(grid_size_y);
@@ -2296,6 +2377,14 @@ function GenerateExtraHallways(grid: GridCell[][], grid_size_x: number, grid_siz
 			cur_x += Constants.LIST_DIRECTIONS[direction * 4];
 			cur_y += Constants.LIST_DIRECTIONS[(direction * 4) + 2];
 		}
+
+		OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_GENERATE_EXTRA_HALLWAY);
+		added_extra_hallway = true;
+	}
+
+	if(added_extra_hallway)
+	{
+		OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_GENERATE_EXTRA_HALLWAYS);
 	}
 }
 
@@ -2316,6 +2405,9 @@ function GenerateExtraHallways(grid: GridCell[][], grid_size_x: number, grid_siz
  */
 function GenerateRoomImperfections(grid: GridCell[][], grid_size_x: number, grid_size_y: number)
 {
+	//Flag for OnCompleteGenerationStep to verify if any imperfections were actually added
+	let added_room_imperfections: boolean = false;
+
 	for(let x = 0; x < grid_size_x; x++)
 	{
 		for(let y = 0; y < grid_size_y; y++)
@@ -2341,6 +2433,9 @@ function GenerateRoomImperfections(grid: GridCell[][], grid_size_x: number, grid
 			//Roll for imperfections
 			//By default, is a 40% chance that the room will still have imperfections
 			if(dungeonRand.RandInt(100) < generationConstants.no_imperfections_chance) continue;
+
+			//Flag for OnCompleteGenerationStep to verify if any imperfections were actually added (to this room specifically)
+			let added_imperfections_to_this_room: boolean = false;
 			
 			let length = (grid[x][y].end_x - grid[x][y].start_x) + (grid[x][y].end_y - grid[x][y].start_y);
 
@@ -2512,6 +2607,9 @@ function GenerateRoomImperfections(grid: GridCell[][], grid_size_x: number, grid
 								{
 									//fill in the current open floor tile with a wall
 									dungeonData.list_tiles[pt_x][pt_y].terrain_flags.terrain_type = TerrainType.TERRAIN_WALL;
+
+									added_room_imperfections = true;
+									added_imperfections_to_this_room = true;
 								}
 							}
 
@@ -2527,7 +2625,17 @@ function GenerateRoomImperfections(grid: GridCell[][], grid_size_x: number, grid
 
 				}
 			}
+
+			if(added_imperfections_to_this_room)
+			{
+				OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_GENERATE_ROOM_IMPERFECTION);
+			}
 		}
+	}
+
+	if(added_room_imperfections)
+	{
+		OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_GENERATE_ROOM_IMPERFECTIONS);
 	}
 }
 
@@ -2590,6 +2698,9 @@ function IsNextToHallway(x: number, y: number): boolean
  */
 function GenerateSecondaryStructures(grid: GridCell[][], grid_size_x: number, grid_size_y: number)
 {
+	//Flag for OnCompleteGenerationStep to verify if any secondary structures were generated
+	let generated_secondary_structure: boolean = false;
+
 	for(let y = 0; y < grid_size_y; y++)
 	{
 		for(let x = 0; x < grid_size_x; x++)
@@ -2643,6 +2754,8 @@ function GenerateSecondaryStructures(grid: GridCell[][], grid_size_x: number, gr
 				}
 
 				grid[x][y].has_secondary_structure = true;
+				OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_GENERATE_SECONDARY_STRUCTURE);
+				generated_secondary_structure = true;
 			}
 			else if(structure_type == SecondaryStructureType.SECONDARY_STRUCTURE_CHECKERBOARD && statusData.secondary_structures_budget > 0)
 			{
@@ -2664,6 +2777,8 @@ function GenerateSecondaryStructures(grid: GridCell[][], grid_size_x: number, gr
 					}
 
 					grid[x][y].has_secondary_structure = true;
+					OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_GENERATE_SECONDARY_STRUCTURE);
+					generated_secondary_structure = true;
 				}
 			}
 			else if(structure_type == SecondaryStructureType.SECONDARY_STRUCTURE_POOL)
@@ -2705,6 +2820,8 @@ function GenerateSecondaryStructures(grid: GridCell[][], grid_size_x: number, gr
 						}
 
 						grid[x][y].has_secondary_structure = true;
+						OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_GENERATE_SECONDARY_STRUCTURE);
+						generated_secondary_structure = true;
 					}
 				}
 			}
@@ -2761,6 +2878,8 @@ function GenerateSecondaryStructures(grid: GridCell[][], grid_size_x: number, gr
 						dungeonData.list_tiles[middle_x][middle_y].spawn_or_visibility_flags.f_special_tile = true;
 
 						grid[x][y].has_secondary_structure = true;
+						OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_GENERATE_SECONDARY_STRUCTURE);
+						generated_secondary_structure = true;
 					}
 				}
 			}
@@ -2801,6 +2920,8 @@ function GenerateSecondaryStructures(grid: GridCell[][], grid_size_x: number, gr
 						}
 
 						grid[x][y].has_secondary_structure = true;
+						OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_GENERATE_SECONDARY_STRUCTURE);
+						generated_secondary_structure = true;
 					}
 				}
 				else
@@ -2832,10 +2953,17 @@ function GenerateSecondaryStructures(grid: GridCell[][], grid_size_x: number, gr
 						}
 
 						grid[x][y].has_secondary_structure = true;
+						OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_GENERATE_SECONDARY_STRUCTURE);
+						generated_secondary_structure = true;
 					}
 				}
 			}
 		}
+	}
+
+	if(generated_secondary_structure)
+	{
+		OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_GENERATE_SECONDARY_STRUCTURES);
 	}
 }
 
@@ -2856,49 +2984,30 @@ function GenerateStandardFloor(grid_size_x: number, grid_size_y: number, floor_p
 {
 	const { list_x, list_y } = GetGridPositions(grid_size_x, grid_size_y);
 
-	map_list_x = list_x;
-	map_list_y = list_y;
+	grid_cell_start_x = list_x;
+	grid_cell_start_y = list_y;
 
 	let grid = InitDungeonGrid(grid_size_x, grid_size_y);
-
-	ReportCurrentDungeonState("Initialiize Dungeon Grid");
 
 	AssignRooms(grid, grid_size_x, grid_size_y, floor_props.room_density);
 
 	CreateRoomsAndAnchors(grid, grid_size_x, grid_size_y, list_x, list_y, floor_props.room_flags);
-
-	ReportCurrentDungeonState("Assign and Create Rooms and Anchors");
 	
 	const cursor_x = dungeonRand.RandInt(grid_size_x);
 	const cursor_y = dungeonRand.RandInt(grid_size_y);
 
 	AssignGridCellConnections(grid, grid_size_x, grid_size_y, cursor_x, cursor_y, floor_props);
-
 	CreateGridCellConnections(grid, grid_size_x, grid_size_y, list_x, list_y, false);
-
-	ReportCurrentDungeonState("Assign and Create Grid Cell Connections");
 	
 	EnsureConnectedGrid(grid, grid_size_x, grid_size_y, list_x, list_y);
-
-	ReportCurrentDungeonState("Ensure Grid is Connected");
 	
 	GenerateMazeRoom(grid, grid_size_x, grid_size_y, floor_props.maze_room_chance);
 	GenerateKecleonShop(grid, grid_size_x, grid_size_y, statusData.kecleon_shop_chance);
 	GenerateMonsterHouse(grid, grid_size_x, grid_size_y, statusData.monster_house_chance);
 
-	ReportCurrentDungeonState("Generate Maze Room, Kecleon Shop, and Monster House");
-
 	GenerateExtraHallways(grid, grid_size_x, grid_size_y, floor_props.num_extra_hallways);
-
-	ReportCurrentDungeonState("Generate Extra Hallways");
-
 	GenerateRoomImperfections(grid, grid_size_x, grid_size_y);
-
-	ReportCurrentDungeonState("Generate Room Imperfections");
-
 	GenerateSecondaryStructures(grid, grid_size_x, grid_size_y);
-
-	ReportCurrentDungeonState("Generate Secondary Structures");
 }
 
 /**
@@ -2928,6 +3037,8 @@ function GenerateOneRoomMonsterHouseFloor()
 		}
 	}
 
+	OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_ONE_ROOM_MONSTER_HOUSE_FLOOR);
+
 	GenerateMonsterHouse(grid, 1, 1, 999);
 }
 
@@ -2944,12 +3055,10 @@ function GenerateOuterRingFloor(floor_props: FloorProperties)
 	const list_x = [0, 5, 0x10, 0x1C, 0x27, 0x33, 0x38];
 	const list_y = [2, 7, 0x10, 0x19, 0x1E];
 
-	map_list_x = list_x;
-	map_list_y = list_y;
+	grid_cell_start_x = list_x;
+	grid_cell_start_y = list_y;
 
 	let grid = InitDungeonGrid(grid_size_x, grid_size_y);
-
-	ReportCurrentDungeonState("Initialize Dungeon Grid");
 
 	//Mark the outer ring as not being rooms
 	for(let x = 0; x < grid_size_x; x++)
@@ -3004,6 +3113,8 @@ function GenerateOuterRingFloor(floor_props: FloorProperties)
 				}
 
 				cur_room_index += 1;
+
+				OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_CREATE_ROOM);
 			}
 			else
 			{
@@ -3018,11 +3129,13 @@ function GenerateOuterRingFloor(floor_props: FloorProperties)
 
 				dungeonData.list_tiles[start_x][start_y].terrain_flags.terrain_type = TerrainType.TERRAIN_NORMAL;
 				dungeonData.list_tiles[start_x][start_y].room_index = 0xFF;
+
+				OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_CREATE_ANCHOR);
 			}
 		}
 	}
 
-	ReportCurrentDungeonState("Initialize Setup for Outer Rings");
+	OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_OUTER_RING_FLOOR);
 
 	grid[0][0].connected_to_right = true;
 	grid[1][0].connected_to_left = true;
@@ -3062,20 +3175,14 @@ function GenerateOuterRingFloor(floor_props: FloorProperties)
 
 	AssignGridCellConnections(grid, grid_size_x, grid_size_x, cursor_x, cursor_y, floor_props);
 	CreateGridCellConnections(grid, grid_size_x, grid_size_y, list_x, list_y, false);
-	ReportCurrentDungeonState("Assign and Create Grid Cell Connections");
 
 	EnsureConnectedGrid(grid, grid_size_x, grid_size_y, list_x, list_y);
-	ReportCurrentDungeonState("Ensure Grid is Connected");
 
 	GenerateKecleonShop(grid, grid_size_x, grid_size_y, statusData.kecleon_shop_chance);
 	GenerateMonsterHouse(grid, grid_size_x, grid_size_y, statusData.monster_house_chance);
-	ReportCurrentDungeonState("Generate Kecleon Shop and Monster House");
 
 	GenerateExtraHallways(grid, grid_size_x, grid_size_y, floor_props.num_extra_hallways);
-	ReportCurrentDungeonState("Generate Extra Hallways");
-
 	GenerateRoomImperfections(grid, grid_size_x, grid_size_y);
-	ReportCurrentDungeonState("Generate Room Imperfections");
 }
  
 /**
@@ -3092,12 +3199,10 @@ function GenerateCrossroadsFloor(floor_props: FloorProperties)
 	const list_x = [0, 0xB, 0x16, 0x21, 0x2C, 0x38];
 	const list_y = [1, 9, 0x10, 0x17, 0x1F];
 
-	map_list_x = list_x;
-	map_list_y = list_y;
+	grid_cell_start_x = list_x;
+	grid_cell_start_y = list_y;
 
 	let grid = InitDungeonGrid(grid_size_x, grid_size_y);
-
-	ReportCurrentDungeonState("Initialize Dungeon Grid");
 
 	//Mark the outer ring as rooms
 	for(let x = 0; x < grid_size_x; x++)
@@ -3160,6 +3265,8 @@ function GenerateCrossroadsFloor(floor_props: FloorProperties)
 				}
 
 				cur_room_index += 1;
+
+				OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_CREATE_ROOM);
 			}
 			else
 			{
@@ -3174,9 +3281,13 @@ function GenerateCrossroadsFloor(floor_props: FloorProperties)
 
 				dungeonData.list_tiles[start_x][start_y].terrain_flags.terrain_type = TerrainType.TERRAIN_NORMAL;
 				dungeonData.list_tiles[start_x][start_y].room_index = 0xFF;
+
+				OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_CREATE_ANCHOR);
 			}
 		}
 	}
+
+	OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_CROSSROADS_FLOOR);
 
 	for(let x = 1; x < grid_size_x - 1; x++)
 	{
@@ -3196,25 +3307,14 @@ function GenerateCrossroadsFloor(floor_props: FloorProperties)
 		}
 	}
 
-	ReportCurrentDungeonState("Initialized Setup for Crossroads");
-
 	CreateGridCellConnections(grid, grid_size_x, grid_size_y, list_x, list_y, true);
 
-	ReportCurrentDungeonState("Create Grid Cell Connections");
-
 	EnsureConnectedGrid(grid, grid_size_x, grid_size_y, list_x, list_y);
-
-	ReportCurrentDungeonState("Ensure Grid is Connected");
-
 	GenerateKecleonShop(grid, grid_size_x, grid_size_y, statusData.kecleon_shop_chance);
 	GenerateMonsterHouse(grid, grid_size_x, grid_size_y, statusData.monster_house_chance);
-	ReportCurrentDungeonState("Generate Kecleon Shop and Monster House");
 
 	GenerateExtraHallways(grid, grid_size_x, grid_size_y, floor_props.num_extra_hallways);
-	ReportCurrentDungeonState("Generate Extra Hallways");
-
 	GenerateRoomImperfections(grid, grid_size_x, grid_size_y);
-	ReportCurrentDungeonState("Generate Room Imperfections");
 }
 
 /**
@@ -3228,12 +3328,10 @@ function GenerateTwoRoomsWithMonsterHouseFloor()
 	const list_x = [2, 0x1C, 0x36];
 	const list_y = [2, 0x1E];
 
-	map_list_x = list_x;
-	map_list_y = list_y;
+	grid_cell_start_x = list_x;
+	grid_cell_start_y = list_y;
 
 	let grid = InitDungeonGrid(grid_size_x, grid_size_y);
-
-	ReportCurrentDungeonState("Initialize Dungeon Grid");
 
 	let cur_room_index = 0;
 	const y = 0;
@@ -3262,18 +3360,17 @@ function GenerateTwoRoomsWithMonsterHouseFloor()
 		}
 
 		cur_room_index++;
+
+		OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_CREATE_ROOM);
 	}
 
-	ReportCurrentDungeonState("Setup Two Rooms With Monster House Floor");
+	OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_TWO_ROOMS_WITH_MONSTER_HOUSE_FLOOR);
 
 	grid[0][0].connected_to_right = true;
 	grid[1][0].connected_to_left = true;
 
 	CreateGridCellConnections(grid, grid_size_x, grid_size_y, list_x, list_y, false);
-	ReportCurrentDungeonState("Create Grid Cell Connections");
-
 	GenerateMonsterHouse(grid, grid_size_x, grid_size_y, 999);
-	ReportCurrentDungeonState("Generate Monster House");
 }
 
 /**
@@ -3287,35 +3384,27 @@ function GenerateLineFloor(floor_props: FloorProperties)
 	const list_x = [0, 0xB, 0x16, 0x21, 0x2C, 0x38];
 	const list_y = [4, 0xF];
 
-	map_list_x = list_x;
-	map_list_y = list_y;
+	grid_cell_start_x = list_x;
+	grid_cell_start_y = list_y;
 
 	let grid = InitDungeonGrid(grid_size_x, grid_size_y);
-	ReportCurrentDungeonState("Initialize Dungeon Grid");
 
 	AssignRooms(grid, grid_size_x, grid_size_y, floor_props.room_density);
 	CreateRoomsAndAnchors(grid, grid_size_x, grid_size_y, list_x, list_y, floor_props.room_flags);
-	ReportCurrentDungeonState("Assign and Create Rooms and Anchors");
 
 	const cursor_x = dungeonRand.RandInt(grid_size_x);
 	const cursor_y = dungeonRand.RandInt(grid_size_y);
 
 	AssignGridCellConnections(grid, grid_size_x, grid_size_y, cursor_x, cursor_y, floor_props);
 	CreateGridCellConnections(grid, grid_size_x, grid_size_y, list_x, list_y, true);
-	ReportCurrentDungeonState("Assign and Create Grid Cell Connections");
 
 	EnsureConnectedGrid(grid, grid_size_x, grid_size_y, list_x, list_y);
-	ReportCurrentDungeonState("Ensure Grid is Connected");
 
 	GenerateKecleonShop(grid, grid_size_x, grid_size_y, statusData.kecleon_shop_chance);
 	GenerateMonsterHouse(grid, grid_size_x, grid_size_y, statusData.monster_house_chance);
-	ReportCurrentDungeonState("Generate Kecleon Shop and Monster House");
 
 	GenerateExtraHallways(grid, grid_size_x, grid_size_y, floor_props.num_extra_hallways);
-	ReportCurrentDungeonState("Generate Extra Hallways");
-
 	GenerateRoomImperfections(grid, grid_size_x, grid_size_y);
-	ReportCurrentDungeonState("Generate Room Imperfections");
 }
 
 /**
@@ -3329,11 +3418,10 @@ function GenerateCrossFloor(floor_props: FloorProperties)
 	const list_x = [0xB, 0x16, 0x21, 0x2C];
 	const list_y = [2, 0xB, 0x14, 0x1E];
 
-	map_list_x = list_x;
-	map_list_y = list_y;
+	grid_cell_start_x = list_x;
+	grid_cell_start_y = list_y;
 
 	let grid = InitDungeonGrid(grid_size_x, grid_size_y);
-	ReportCurrentDungeonState("Initialize Dungeon Grid");
 
 	//Set all cells as rooms
 	for(let x = 0; x < grid_size_x; x++)
@@ -3351,7 +3439,6 @@ function GenerateCrossFloor(floor_props: FloorProperties)
 	grid[grid_size_x - 1][grid_size_y - 1].is_invalid = true;
 
 	CreateRoomsAndAnchors(grid, grid_size_x, grid_size_y, list_x, list_y, floor_props.room_flags);
-	ReportCurrentDungeonState("Create Rooms and Anchors");
 
 	grid[1][0].connected_to_bottom = true;
 	grid[1][1].connected_to_top = true;
@@ -3363,19 +3450,14 @@ function GenerateCrossFloor(floor_props: FloorProperties)
 	grid[2][1].connected_to_left = true;
 
 	CreateGridCellConnections(grid, grid_size_x, grid_size_y, list_x, list_y, true);
-	ReportCurrentDungeonState("Create Grid Cell Connections");
 
 	EnsureConnectedGrid(grid, grid_size_x, grid_size_y, list_x, list_y);
-	ReportCurrentDungeonState("Ensure Grid is Connected");
 
 	GenerateKecleonShop(grid, grid_size_x, grid_size_y, statusData.kecleon_shop_chance);
 	GenerateMonsterHouse(grid, grid_size_x, grid_size_y, statusData.monster_house_chance);
 
 	GenerateExtraHallways(grid, grid_size_x, grid_size_y, floor_props.num_extra_hallways);
-	ReportCurrentDungeonState("Generate Extra Hallways");
-
 	GenerateRoomImperfections(grid, grid_size_x, grid_size_y);
-	ReportCurrentDungeonState("Generate Room Imperfections");
 }
 
 /**
@@ -3413,6 +3495,8 @@ function MergeRoomsVertically(room_x: number, room_y1: number, room_dy: number, 
 	grid[room_x][room_y2].is_merged = true;
 	grid[room_x][room_y2].is_connected = false;
 	grid[room_x][room_y2].has_been_merged = true;
+
+	OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_MERGE_ROOM_VERTICALLY);
 }
 
 /**
@@ -3427,12 +3511,10 @@ function GenerateBeetleFloor(floor_props: FloorProperties)
 	const list_x = [0x5, 0xF, 0x23, 0x32];
 	const list_y = [2, 0xB, 0x14, 0x1E];
 
-	map_list_x = list_x;
-	map_list_y = list_y;
+	grid_cell_start_x = list_x;
+	grid_cell_start_y = list_y;
 
 	let grid = InitDungeonGrid(grid_size_x, grid_size_y);
-
-	ReportCurrentDungeonState("Initialize Dungeon Grid");
 
 	//Set all cells as rooms
 	for(let x = 0; x < grid_size_x; x++)
@@ -3444,7 +3526,6 @@ function GenerateBeetleFloor(floor_props: FloorProperties)
 	}
 
 	CreateRoomsAndAnchors(grid, grid_size_x, grid_size_y, list_x, list_y, floor_props.room_flags);
-	ReportCurrentDungeonState("Assign and Create Rooms and Anchors");
 
 	//Connect rooms in the same row together
 	for(let y = 0; y < grid_size_y; y++)
@@ -3456,26 +3537,20 @@ function GenerateBeetleFloor(floor_props: FloorProperties)
 	}
 
 	CreateGridCellConnections(grid, grid_size_x, grid_size_y, list_x, list_y, true);
-	ReportCurrentDungeonState("Create Grid Cell Connections");
 
 	//Merge the center column into one large room
 	MergeRoomsVertically(1, 0, 1, grid);
 	MergeRoomsVertically(1, 0, 2, grid);
-	ReportCurrentDungeonState("Merge Rooms Vertically");
+	
+	OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_MERGE_ROOM_VERTICALLY);
 
 	EnsureConnectedGrid(grid, grid_size_x, grid_size_y, list_x, list_y);
 
-	ReportCurrentDungeonState("Ensure Grid is Connected");
-
 	GenerateKecleonShop(grid, grid_size_x, grid_size_y, statusData.kecleon_shop_chance);
 	GenerateMonsterHouse(grid, grid_size_x, grid_size_y, statusData.monster_house_chance);
-	ReportCurrentDungeonState("Generate Kecleon Shop and Monster House");
 
 	GenerateExtraHallways(grid, grid_size_x, grid_size_y, floor_props.num_extra_hallways);
-	ReportCurrentDungeonState("Generate Extra Hallways");
-
 	GenerateRoomImperfections(grid, grid_size_x, grid_size_y);
-	ReportCurrentDungeonState("Generate Room Imperfections");
 }
 
 /**
@@ -3488,9 +3563,10 @@ function GenerateOuterRoomsFloor(grid_size_x: number, grid_size_y: number, floor
 {
 	let { list_x, list_y } = GetGridPositions(grid_size_x, grid_size_y);
 
-	let grid = InitDungeonGrid(grid_size_x, grid_size_y);
+	grid_cell_start_x = list_x;
+	grid_cell_start_y = list_y;
 
-	ReportCurrentDungeonState("Initialize Dungeon Grid");
+	let grid = InitDungeonGrid(grid_size_x, grid_size_y);
 
 	//Make all cells rooms
 	for(let x = 0; x < grid_size_x; x++)
@@ -3511,7 +3587,6 @@ function GenerateOuterRoomsFloor(grid_size_x: number, grid_size_y: number, floor
 	}
 
 	CreateRoomsAndAnchors(grid, grid_size_x, grid_size_y, list_x, list_y, floor_props.room_flags);
-	ReportCurrentDungeonState("Assign and Create Rooms and Anchors");
 	
 	if(advancedGenerationSettings.fix_generate_outer_rooms_floor_error)
 	{
@@ -3594,24 +3669,16 @@ function GenerateOuterRoomsFloor(grid_size_x: number, grid_size_y: number, floor
 	}
 
 	CreateGridCellConnections(grid, grid_size_x, grid_size_y, list_x, list_y, false);
-	ReportCurrentDungeonState("Create Grid Cell Connections");
 	
 	EnsureConnectedGrid(grid, grid_size_x, grid_size_y, list_x, list_y);
-	ReportCurrentDungeonState("Ensure Grid is Connected");
 	
 	GenerateMazeRoom(grid, grid_size_x, grid_size_y, floor_props.maze_room_chance);
 	GenerateKecleonShop(grid, grid_size_x, grid_size_y, statusData.kecleon_shop_chance);
 	GenerateMonsterHouse(grid, grid_size_x, grid_size_y, statusData.monster_house_chance);
-	ReportCurrentDungeonState("Generate Maze Room, Kecleon Shop, Monster House");
 
 	GenerateExtraHallways(grid, grid_size_x, grid_size_y, floor_props.num_extra_hallways);
-	ReportCurrentDungeonState("Generate Extra Hallways");
-
 	GenerateRoomImperfections(grid, grid_size_x, grid_size_y);
-	ReportCurrentDungeonState("Generate Room Imperfections");
-
 	GenerateSecondaryStructures(grid, grid_size_x, grid_size_y);
-	ReportCurrentDungeonState("Generate Secondary Structures");
 }
 
 /**
@@ -3816,6 +3883,9 @@ function GenerateSecondaryTerrainFormations(test_flag: boolean, floor_props: Flo
 		let done = false;
 		while(!done)
 		{
+			//
+			let generated_river_tiles: boolean = false;
+
 			//Fill in tiles in chunks of size 2-7 before changing the flow direction
 			const num_tiles_fill = dungeonRand.RandInt(6) + 2;
 			for(let v = 0; v < num_tiles_fill; v++)
@@ -3836,6 +3906,11 @@ function GenerateSecondaryTerrainFormations(test_flag: boolean, floor_props: Flo
 					if (tile.terrain_flags.terrain_type == TerrainType.TERRAIN_SECONDARY) 
 					{
 						done = true;
+
+						if(generated_river_tiles)
+						{
+							OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_SECONDARY_TERRAIN_RIVER);
+						}
 						break;
 					}
 
@@ -3843,6 +3918,7 @@ function GenerateSecondaryTerrainFormations(test_flag: boolean, floor_props: Flo
 					{
 						//Fill in secondary terrain as we go
 						SetSecondaryTerrainOnWall(dungeonData.list_tiles[pt_x][pt_y]);
+						generated_river_tiles = true;
 					}
 				}
 
@@ -3851,11 +3927,17 @@ function GenerateSecondaryTerrainFormations(test_flag: boolean, floor_props: Flo
 				pt_y += dir_y;
 
 				//Vertically out of bounds, stop
-				if(pt_y < 0 || pt_y >= FLOOR_MAX_Y) break;
+				if(pt_y < 0 || pt_y >= FLOOR_MAX_Y)
+				{
+					OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_SECONDARY_TERRAIN_RIVER);
+					break;
+				}
 
 				steps_until_lake -= 1;
 
 				if(steps_until_lake != 0) continue;
+
+				OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_SECONDARY_TERRAIN_RIVER);
 
 				//After we go a certain number of steps, make a "lake"
 
@@ -3944,6 +4026,8 @@ function GenerateSecondaryTerrainFormations(test_flag: boolean, floor_props: Flo
 						}
 					}
 				}
+
+				OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_SECONDARY_TERRAIN_RIVER_LAKE);
 			}
 
 			//Creating a lake doesn't mean we are done yet
@@ -4063,6 +4147,8 @@ function GenerateSecondaryTerrainFormations(test_flag: boolean, floor_props: Flo
 				}
 			}
 		}
+
+		OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_SECONDARY_TERRAIN_STANDALONE_LAKE);
 	}
 
 	//Clean up secondary terrain that got in places it shouldn't
@@ -4098,6 +4184,8 @@ function GenerateSecondaryTerrainFormations(test_flag: boolean, floor_props: Flo
 			}
 		}
 	}
+
+	OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_GENERATE_SECONDARY_TERRAIN);
 }
 
 /**
@@ -4109,51 +4197,53 @@ function GenerateSecondaryTerrainFormations(test_flag: boolean, floor_props: Flo
  * If spawning normal stairs and the current floor is a rescue floor, the room
  * with the stairs will be converted into a Monster House.
  */
- function SpawnStairs(x: number, y: number, hidden_stairs_type: HiddenStairsType)
- {
-	 dungeonData.list_tiles[x][y].spawn_or_visibility_flags.f_item = false;
-	 dungeonData.list_tiles[x][y].spawn_or_visibility_flags.f_stairs = true;
+function SpawnStairs(x: number, y: number, hidden_stairs_type: HiddenStairsType)
+{
+	dungeonData.list_tiles[x][y].spawn_or_visibility_flags.f_item = false;
+	dungeonData.list_tiles[x][y].spawn_or_visibility_flags.f_stairs = true;
  
-	 if(hidden_stairs_type == HiddenStairsType.HIDDEN_STAIRS_NONE)
-	 {
-		 //Normal stairs
-		 dungeonGenerationInfo.stairs_spawn_x = x;
-		 dungeonGenerationInfo.stairs_spawn_y = y;
-		 statusData.stairs_room_index = dungeonData.list_tiles[x][y].room_index;
-	 }
-	 else
-	 {
-		 //Hidden stairs
-		 if(statusData.second_spawn)
-		 {
-			 statusData.hidden_stairs_spawn_x = x;
-			 statusData.hidden_stairs_spawn_y = y;
-		 }
-		 else
-		 {
-			 dungeonGenerationInfo.hidden_stairs_spawn_x = x;
-			 dungeonGenerationInfo.hidden_stairs_spawn_y = y;
-			 dungeonGenerationInfo.hidden_stairs_type = hidden_stairs_type;
-		 }
-	 }
+	if(hidden_stairs_type == HiddenStairsType.HIDDEN_STAIRS_NONE)
+	{
+		//Normal stairs
+		dungeonGenerationInfo.stairs_spawn_x = x;
+		dungeonGenerationInfo.stairs_spawn_y = y;
+		statusData.stairs_room_index = dungeonData.list_tiles[x][y].room_index;
+	}
+	else
+	{
+		//Hidden stairs
+		if(statusData.second_spawn)
+		{
+			statusData.hidden_stairs_spawn_x = x;
+			statusData.hidden_stairs_spawn_y = y;
+		}
+		else
+		{
+			dungeonGenerationInfo.hidden_stairs_spawn_x = x;
+			dungeonGenerationInfo.hidden_stairs_spawn_y = y;
+			dungeonGenerationInfo.hidden_stairs_type = hidden_stairs_type;
+		}
+	}
  
-	 //If we're spawning normal stairs and this is a rescue floor, make the stairs room a Monster House
-	 if(hidden_stairs_type == HiddenStairsType.HIDDEN_STAIRS_NONE && GetFloorType() == FloorType.FLOOR_TYPE_RESCUE)
-	 {
+	//If we're spawning normal stairs and this is a rescue floor, make the stairs room a Monster House
+	if(hidden_stairs_type == HiddenStairsType.HIDDEN_STAIRS_NONE && GetFloorType() == FloorType.FLOOR_TYPE_RESCUE)
+	{
 		let room_index = dungeonData.list_tiles[x][y].room_index;
-		 for(let cur_x = 0; cur_x < FLOOR_MAX_X; cur_x++)
-		 {
-			 for(let cur_y = 0; cur_y < FLOOR_MAX_Y; cur_y++)
-			 {
-				 if(dungeonData.list_tiles[cur_x][cur_y].terrain_flags.terrain_type == TerrainType.TERRAIN_NORMAL
-					 && dungeonData.list_tiles[cur_x][cur_y].room_index == room_index)
-				 {
-					 dungeonData.list_tiles[x][y].terrain_flags.f_in_monster_house = true;
-					 dungeonGenerationInfo.monster_house_room = dungeonData.list_tiles[x][y].room_index;
-				 }
-			 }
-		 }
-	 }
+		for(let cur_x = 0; cur_x < FLOOR_MAX_X; cur_x++)
+		{
+			for(let cur_y = 0; cur_y < FLOOR_MAX_Y; cur_y++)
+			{
+				if(dungeonData.list_tiles[cur_x][cur_y].terrain_flags.terrain_type == TerrainType.TERRAIN_NORMAL
+					&& dungeonData.list_tiles[cur_x][cur_y].room_index == room_index)
+				{
+					dungeonData.list_tiles[x][y].terrain_flags.f_in_monster_house = true;
+					dungeonGenerationInfo.monster_house_room = dungeonData.list_tiles[x][y].room_index;
+				}
+			}
+		}
+	}
+
+	OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_SPAWN_STAIRS);
 }
 
 /**
@@ -4317,6 +4407,8 @@ function SpawnNonEnemies(floor_props: FloorProperties, is_empty_monster_house: b
 				//Spawn an item here
 				dungeonData.list_tiles[pos_x][pos_y].spawn_or_visibility_flags.f_item = true;
 			}
+
+			OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_SPAWN_ITEMS);
 		}
 	}
 
@@ -4367,6 +4459,8 @@ function SpawnNonEnemies(floor_props: FloorProperties, is_empty_monster_house: b
 				//Spawn an item here
 				dungeonData.list_tiles[pos_x][pos_y].spawn_or_visibility_flags.f_item = true;
 			}
+
+			OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_SPAWN_BURIED_ITEMS);
 		}
 	}
 
@@ -4433,6 +4527,8 @@ function SpawnNonEnemies(floor_props: FloorProperties, is_empty_monster_house: b
 				dungeonData.list_tiles[pos_x][pos_y].spawn_or_visibility_flags.f_trap = true;
 			}
 		}
+
+		OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_SPAWN_MONSTER_HOUSE_ITEMS_TRAPS);
 	}
 
 	//Spawn Normal Traps
@@ -4493,18 +4589,20 @@ function SpawnNonEnemies(floor_props: FloorProperties, is_empty_monster_house: b
 				//Spawn a trap here
 				dungeonData.list_tiles[pos_x][pos_y].spawn_or_visibility_flags.f_trap = true;
 			}
+
+			OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_SPAWN_TRAPS);
 		}
 	}
 
-	let flag: boolean;
+	let is_rescue_floor: boolean;
 
 	if(GetFloorType() == FloorType.FLOOR_TYPE_RESCUE)
 	{
-		flag = true;
+		is_rescue_floor = true;
 	}
 	else
 	{
-		flag = false;
+		is_rescue_floor = false;
 	}
 
 	//Spawn the player
@@ -4534,7 +4632,7 @@ function SpawnNonEnemies(floor_props: FloorProperties, is_empty_monster_house: b
 					&& !dungeonData.list_tiles[x][y].spawn_or_visibility_flags.f_trap)
 				{
 					//Also, on rescue floors the player can't spawn directly on the stairs
-					if(!flag || !dungeonData.list_tiles[x][y].spawn_or_visibility_flags.f_stairs)
+					if(!is_rescue_floor || !dungeonData.list_tiles[x][y].spawn_or_visibility_flags.f_stairs)
 					{
 						valid_spawns_x.push(x);
 						valid_spawns_y.push(y);
@@ -4549,8 +4647,12 @@ function SpawnNonEnemies(floor_props: FloorProperties, is_empty_monster_house: b
 			const spawn_index = dungeonRand.RandInt(valid_spawns_x.length);
 			dungeonGenerationInfo.player_spawn_x = valid_spawns_x[spawn_index];
 			dungeonGenerationInfo.player_spawn_y = valid_spawns_y[spawn_index];
+
+			OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_SPAWN_PLAYER);
 		}
 	}
+
+	OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_SPAWN_NON_ENEMIES);
 }
 
 /**
@@ -4636,9 +4738,16 @@ function SpawnEnemies(floor_props: FloorProperties, is_empty_monster_house: bool
 			//Spawn an enemy here
 			dungeonData.list_tiles[pos_x][pos_y].spawn_or_visibility_flags.f_monster = true;
 		}
+
+		OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_SPAWN_NON_MONSTER_HOUSE_ENEMIES);
 	}
 
-	if(!dungeonGenerationInfo.force_create_monster_house) return;
+	if(!dungeonGenerationInfo.force_create_monster_house)
+	{
+		OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_SPAWN_ENEMIES);
+		return;
+	}
+
 	//This floor was marked to force a monster house
 	//Place extra enemy spawns in the Monster House room
 
@@ -4716,7 +4825,11 @@ function SpawnEnemies(floor_props: FloorProperties, is_empty_monster_house: bool
 			//Spawn an enemy here
 			dungeonData.list_tiles[pos_x][pos_y].spawn_or_visibility_flags.f_monster = true;
 		}
+
+		OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_SPAWN_MONSTER_HOUSE_EXTRA_ENEMIES);
 	}
+
+	OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_SPAWN_ENEMIES);
 }
 
 /**
@@ -5220,7 +5333,8 @@ function GenerateFloor(floor_props: FloorProperties): Tile[][]
 		}
 		
 		//If we fail to generate a layout in 10 attempts, just abort and make a one-room Monster House
-		if (gen_attempts == 10) {
+		if (gen_attempts == 10) 
+		{
 			statusData.kecleon_shop_middle_x = -1;
 			statusData.kecleon_shop_middle_y = -1;
 			GenerateOneRoomMonsterHouseFloor();
@@ -5229,11 +5343,12 @@ function GenerateFloor(floor_props: FloorProperties): Tile[][]
 
 		//We will be guaranteed to have a good layout by this point
 		FinalizeJunctions();
-		if (secondary_gen) {
+		if (secondary_gen) 
+		{
 			GenerateSecondaryTerrainFormations(true, floor_props);
 		}
 
-		ReportCurrentDungeonState("Finalize Junctions and Generate Secondary Terrain Formations");
+		//OnCompleteGenerationStep("Finalize Junctions and Generate Secondary Terrain Formations");
 
 		let is_empty_monster_house = (dungeonRand.RandInt(100) < floor_props.itemless_monster_house_chance);
 		
@@ -5242,7 +5357,7 @@ function GenerateFloor(floor_props: FloorProperties): Tile[][]
 		
 		ResolveInvalidSpawns(); //Make sure multiple flags aren't set for one tile
 
-		ReportCurrentDungeonState("Spawn Entities and Resolve Invalid Spawns");
+		//OnCompleteGenerationStep("Spawn Entities and Resolve Invalid Spawns");
 		
 		if (dungeonGenerationInfo.player_spawn_x != -1 && dungeonGenerationInfo.player_spawn_y != -1) {
 			// This is for normal fixed rooms, we don't need to validate the stairs in this scenario
@@ -5275,33 +5390,49 @@ function GenerateFloor(floor_props: FloorProperties): Tile[][]
 		}
 	}
 
-	ReportCurrentDungeonState("Finished Layout");
-
 	//TODO: Integrate late GenerateFloor operations
+
+	OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_COMPLETE, MajorGenerationType.GEN_TYPE_GENERATE_FLOOR);
 
 	return dungeonData.list_tiles;
 }
 
 /**
- * ReportCurrentDungeonState - responsible for mid-generation dungeon progression if additional output is desired
+ * OnCompleteGenerationStep - responsible for mid-generation dungeon progression if additional output is desired
  */
-// @ts-ignore
-function ReportCurrentDungeonState(state_description: string)
+function OnCompleteGenerationStep(generation_step_level: GenerationStepLevel, generation_type: GenerationType)
 {
-	/*
-	console.log(state_description);
-	PrintMap(dungeonData.list_tiles, map_list_x, map_list_y);*/
+	//Check if the event is at or below the threshold we've set for accepting callbacks
+	if(generationCallbackFrequency >= generation_step_level && typeof dungeonGenerationCallback === 'function')
+	{
+		dungeonGenerationCallback(generation_step_level, generation_type, dungeonData, dungeonGenerationInfo, statusData, grid_cell_start_x, grid_cell_start_y);
+	}
 }
 
 /**
- * GenerateDungeon - Entry function to produce a dungeon floor (not part of the original code)
+ * GenerateDungeon - Entry function provided to generate a dungeon floor (not part of the original code)
+ * 
+ * @param floor_props - Primary properties of the floor, such as its room density or floor connectivity.
+ * @param dungeon_data - Properties of the Dungeon we're in, such as what dungeon we're in or if we're doing a mission.
+ * @param generation_constants - Modifications to the vanilla values for constants like the chance to merge rooms.
+ * @param advanced_generation_settings - Modifications and patches to dungeon algorithm bugs / other advanced functionality
+ * @param dungeon_generation_callback - A callback function to provide all information on the steps of generation as the algorithm progresses,
+ * 										it will be called based on the the frequency specified in generation_callback_frequency
+ * @param generation_callback_frequency - Determines how often to call the callback function. By default this will only be for the final generated layout,
+ * 									 but this can be modified to include major generation events (ex. Generating all hallways on a floor) or minor generation
+ * 									 events (ex. Generating a single hallway on the floor).
+ * @returns The dungeon tile map for the final generated floor.
  */
 export function GenerateDungeon(floor_props: FloorProperties, 
 								dungeon_data: Dungeon, 
 								generation_constants?: GenerationConstants, 
-								advanced_generation_settings?: AdvancedGenerationSettings): Tile[][]
+								advanced_generation_settings?: AdvancedGenerationSettings,
+								dungeon_generation_callback?: DungeonGenerationCallback,
+								generation_callback_frequency?: GenerationStepLevel): Tile[][]
 {
-	dungeonData = dungeon_data;
+	//We want to make this a deep copy, otherwise changes to dungeonData will leak to the original reference 
+	//(we also really don't want the map stored there unknowingly).
+	dungeonData = JSON.parse(JSON.stringify(dungeon_data));
 
 	dungeonGenerationInfo = new DungeonGenerationInfo();
 	statusData = new FloorGenerationStatus();
@@ -5323,6 +5454,20 @@ export function GenerateDungeon(floor_props: FloorProperties,
 	else
 	{
 		advancedGenerationSettings = new AdvancedGenerationSettings();
+	}
+
+	if(typeof dungeon_generation_callback !== 'undefined')
+	{
+		dungeonGenerationCallback = dungeon_generation_callback;
+	}
+
+	if(typeof generation_callback_frequency !== 'undefined')
+	{
+		generationCallbackFrequency = generation_callback_frequency;
+	}
+	else
+	{
+		generationCallbackFrequency = GenerationStepLevel.GEN_STEP_COMPLETE;
 	}
 
 	return GenerateFloor(floor_props);

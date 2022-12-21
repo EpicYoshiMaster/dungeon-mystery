@@ -1,17 +1,17 @@
-import { Tile, GridCell } from './key_types'
+import { Tile } from './key_types'
 import { TerrainType } from './enums'
 
-const USE_CELL_BORDER_LINES = true;
-
-export function PrintMap(map: Tile[][], list_x: number[], list_y: number[])
+export function CreateMapString(map: Tile[][], list_x?: number[], list_y?: number[]): string
 {
+	let map_string: string = "";
+
 	let x_idx = 0, y_idx = 0, on_x_border = false, on_y_border = false;
 
 	for(let y = 0; y < 32; y++)
 	{
 		let mapLine = "";
 
-		if(y_idx < list_y.length && y >= list_y[y_idx] - 1)
+		if(list_y && y_idx < list_y.length && y >= list_y[y_idx] - 1)
 		{
 			if(y >= list_y[y_idx])
 			{
@@ -29,7 +29,7 @@ export function PrintMap(map: Tile[][], list_x: number[], list_y: number[])
 
 		for(let x = 0; x < 56; x++)
 		{
-			if(x_idx < list_x.length && x >= list_x[x_idx] - 1)
+			if(list_x && x_idx < list_x.length && x >= list_x[x_idx] - 1)
 			{
 				if(x >= list_x[x_idx])
 				{
@@ -50,7 +50,7 @@ export function PrintMap(map: Tile[][], list_x: number[], list_y: number[])
 
 			if(map[x][y].terrain_flags.terrain_type == TerrainType.TERRAIN_NORMAL)
 			{
-				if(map[x][y].terrain_flags.f_stairs)
+				if(map[x][y].spawn_or_visibility_flags.f_stairs)
 				{
 					mapLine += "=";
 				}
@@ -98,7 +98,7 @@ export function PrintMap(map: Tile[][], list_x: number[], list_y: number[])
 			}
 			else if(map[x][y].terrain_flags.terrain_type == TerrainType.TERRAIN_WALL)
 			{
-				if(USE_CELL_BORDER_LINES && (on_x_border || on_y_border))
+				if((on_x_border || on_y_border))
 				{
 					//flags signal we're on a grid cell border
 					mapLine += "\\";
@@ -118,23 +118,8 @@ export function PrintMap(map: Tile[][], list_x: number[], list_y: number[])
 			}
 		}
 
-		//console.log(mapLine);
-	}
-}
-
-export function PrintGrid(grid: GridCell[][], grid_size_x: number, grid_size_y: number)
-{
-	let true_grid: GridCell[][] = [];
-
-	for(let x = 0; x < grid_size_x; x++)
-	{
-		true_grid.push([]);
-
-		for(let y = 0; y < grid_size_y; y++)
-		{
-			true_grid[x].push(grid[x][y]);
-		}
+		map_string += mapLine + "\n";
 	}
 
-	//console.log(true_grid);
+	return map_string;
 }
