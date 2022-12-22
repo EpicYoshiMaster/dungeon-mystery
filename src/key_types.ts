@@ -178,34 +178,7 @@ export class Dungeon
 	//field_0x12aa4: boolean = false;
 	//field_0x3fc2: boolean = false;
 
-	list_tiles: Tile[][]; //This is the dungeon map
-	fixed_room_tiles: Tile[][];
+	list_tiles: Tile[][] = []; //This is the dungeon map
+	fixed_room_tiles: Tile[][]  = [];
 	active_traps: number[] = new Array(64);
-
-	constructor()
-	{
-		this.list_tiles = new Array(56);
-
-		for(let x = 0; x < 56; x++)
-		{
-			this.list_tiles[x] = new Array(32);
-
-			for(let y = 0; y < 32; y++)
-			{
-				this.list_tiles[x][y] = new Tile();
-			}
-		}
-
-		this.fixed_room_tiles = new Array(8);
-
-		for(let x = 0; x < 8; x++)
-		{
-			this.fixed_room_tiles[x] = new Array(8);
-
-			for(let y = 0; y < 8; y++)
-			{
-				this.fixed_room_tiles[x][y] = new Tile();
-			}
-		}
-	}
 };

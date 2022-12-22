@@ -51,9 +51,13 @@ function PosIsOutOfBounds(x: number, y: number)
  */
 function ResetFloor()
 {
+	dungeonData.list_tiles = new Array(FLOOR_MAX_X);
+
 	//Reset Room Tiles
 	for(let x = 0; x < FLOOR_MAX_X; x++)
 	{
+		dungeonData.list_tiles[x] = new Array(FLOOR_MAX_Y);
+
 		for(let y = 0; y < FLOOR_MAX_Y; y++)
 		{
 			dungeonData.list_tiles[x][y] = new Tile();
@@ -76,9 +80,13 @@ function ResetFloor()
 	dungeonGenerationInfo.stairs_spawn_x = -1;
 	dungeonGenerationInfo.stairs_spawn_y = -1;
 
+	dungeonData.fixed_room_tiles = new Array(8);
+
 	//Reset Fixed Room Tiles
 	for(let x = 0; x < 8; x++)
 	{
+		dungeonData.fixed_room_tiles[x] = new Array(8);
+
 		for(let y = 0; y < 8; y++)
 		{
 			dungeonData.fixed_room_tiles[x][y] = new Tile();
@@ -2139,7 +2147,7 @@ function GenerateMonsterHouse(grid: GridCell[][], grid_size_x: number, grid_size
  * These paths are often visibly dead-end hallways, or hallways which loop on themselves.
  * 
  * Each walk begin at a random tile in a random room, leaving in a random cardinal direction, tunneling
- * through obstaclesuntil it reaches open terrain, is out of bounds, or reaches an impassable obstruction.
+ * through obstacles until it reaches open terrain, is out of bounds, or reaches an impassable obstruction.
  * 
  * For each hallway the following steps are done:
  * 
@@ -4236,7 +4244,7 @@ function SpawnStairs(x: number, y: number, hidden_stairs_type: HiddenStairsType)
 				if(dungeonData.list_tiles[cur_x][cur_y].terrain_flags.terrain_type == TerrainType.TERRAIN_NORMAL
 					&& dungeonData.list_tiles[cur_x][cur_y].room_index == room_index)
 				{
-					dungeonData.list_tiles[x][y].terrain_flags.f_in_monster_house = true;
+					dungeonData.list_tiles[cur_x][cur_y].terrain_flags.f_in_monster_house = true;
 					dungeonGenerationInfo.monster_house_room = dungeonData.list_tiles[x][y].room_index;
 				}
 			}
