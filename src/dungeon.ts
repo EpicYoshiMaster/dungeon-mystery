@@ -1563,7 +1563,7 @@ function GenerateMazeLine(x0: number, y0: number, xmin: number, ymin: number, xm
 			const pos_y = y0 + offset_y;
 			
 			//Check that this position is in-bounds
-			if(pos_x >= xmin && pos_y < xmax && pos_y >= ymin && pos_y < ymax)
+			if(pos_x >= xmin && pos_x < xmax && pos_y >= ymin && pos_y < ymax)
 			{
 				//Check that this tile is open ground
 				if(dungeonData.list_tiles[pos_x][pos_y].terrain_flags.terrain_type == TerrainType.TERRAIN_NORMAL)
@@ -1668,7 +1668,7 @@ function GenerateMaze(grid_cell: GridCell, use_secondary_terrain: boolean)
 	{
 		for(let cur_y = grid_cell.start_y + 3; cur_y < grid_cell.end_y - 3; cur_y += 2)
 		{
-			if(dungeonData.list_tiles[grid_cell.start_x - 1][cur_y].terrain_flags.terrain_type == TerrainType.TERRAIN_NORMAL)
+			if(dungeonData.list_tiles[cur_x][cur_y].terrain_flags.terrain_type == TerrainType.TERRAIN_NORMAL)
 			{
 				if(use_secondary_terrain)
 				{
