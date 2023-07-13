@@ -1,6 +1,10 @@
 # dungeon-mystery
 
 [![npm](https://img.shields.io/npm/v/dungeon-mystery)](https://www.npmjs.com/package/dungeon-mystery)
+
+![dungeon-mystery512x487](https://github.com/EpicYoshiMaster/dungeon-mystery/assets/32598419/8aeb7f74-c97d-473b-943a-115f4c83e015)
+
+Logo by [@sgtmug](https://twitter.com/sergeantmug)
  
 dungeon-mystery is a Typescript implementation of Pokémon Mystery Dungeon: Explorers of Sky's dungeon algorithm.
 
