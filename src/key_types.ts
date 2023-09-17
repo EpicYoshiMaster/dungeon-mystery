@@ -4,13 +4,12 @@ import { RoomFlags, TerrainFlags, SpawnFlags, MissionDestinationInfo } from './m
 /**
  * A Grid Cell refers to a single enclosed tile-space of the dungeon map.
  * These are used in dungeon.ts to form a matrix of grid cells that represent the entire map.
- * 
- * Each individual grid cell can hold one room or hallway anchor (or nothing if its contents are deleted later in generation). 
- * 
+ *
+ * Each individual grid cell can hold one room or hallway anchor (or nothing if its contents are deleted later in generation).
+ *
  * Grid Cells are an important level of abstraction above the tile space, though they aren't used once dungeon generation has finished.
  */
-export class GridCell 
-{
+export class GridCell {
 	//Defines the enclosing rectangular room space for this grid cell on the dungeon map [start_x, end_x), [start_y, end_y)
 	start_x: number = 0;
 	start_y: number = 0;
@@ -39,34 +38,32 @@ export class GridCell
 	unk5: boolean = false;
 	flag_imperfect: boolean = false;
 	flag_secondary_structure: boolean = false;
-};
+}
 
 /**
  * A Tile is one individual square on the actual dungeon map.
- * 
+ *
  * Most of its relevant properties are contained in TerrainFlags and SpawnFlags, which specify how the
  * tile operates and what it will look like.
  */
-export class Tile 
-{
-	terrain_flags: TerrainFlags = new TerrainFlags(); 
+export class Tile {
+	terrain_flags: TerrainFlags = new TerrainFlags();
 	spawn_or_visibility_flags: SpawnFlags = new SpawnFlags(); // Technically context-dependent, but is always SpawnFlags for dungeon gen
 	texture_id: number = 0;
-	room_index: number = 0xFF; // 0xFF = Not a room, 0xFE = hallway anchors (set to 0xFF later). Other values are room indexes
-	
+	room_index: number = 0xff; // 0xFF = Not a room, 0xFE = hallway anchors (set to 0xFF later). Other values are room indexes
+
 	//TODO: Investigate relevance of flags
 	//walkable_neighbor_flags: boolean[];
 }
 
 /**
- * Floor Properties defines many of the key properties for dungeon generation, such as 
+ * Floor Properties defines many of the key properties for dungeon generation, such as
  * the type of layout, base number of rooms, and floor connectivity.
- * 
+ *
  * It's worth noting that not all settings affecting dungeon generation are contained here, as
  * various other properties in Dungeon can also impact how the floor will generate.
  */
-export class FloorProperties 
-{
+export class FloorProperties {
 	layout: FloorLayout = FloorLayout.LAYOUT_SMALL;
 	room_density: number = 4;
 	floor_connectivity: number = 15;
@@ -78,7 +75,7 @@ export class FloorProperties
 	secondary_structures_budget: number = 0; //Maximum number of secondary structures that can be generated
 
 	room_flags: RoomFlags = new RoomFlags();
-	
+
 	item_density: number = 0;
 	trap_density: number = 0;
 	floor_number: number = 0;
@@ -90,95 +87,92 @@ export class FloorProperties
 	itemless_monster_house_chance: number = 0; //Chance that a monster house will be itemless
 	hidden_stairs_type: HiddenStairsType = HiddenStairsType.HIDDEN_STAIRS_NONE;
 	hidden_stairs_spawn_chance: number = 0;
-};
+}
 
 /**
  * NA: 0237CFBC
  * Floor Generation Status holds many of the runtime values for dungeon generation
- * 
+ *
  * Generally, most of these values are copied from other existing data, but some like has_monster_house
  * do record information as generation progresses.
  */
-export class FloorGenerationStatus 
-{  
-	second_spawn: boolean = false;  // 0x0
-	has_monster_house: boolean = false;  // 0x1: This floor has a monster house
-	stairs_room_index: number = 0;  // 0x2: The index of the room containing the stairs
-	has_kecleon_shop: boolean = false;  // 0x3: This floor has a Kecleon Shop
+export class FloorGenerationStatus {
+	second_spawn: boolean = false; // 0x0
+	has_monster_house: boolean = false; // 0x1: This floor has a monster house
+	stairs_room_index: number = 0; // 0x2: The index of the room containing the stairs
+	has_kecleon_shop: boolean = false; // 0x3: This floor has a Kecleon Shop
 	has_chasms_as_secondary_terrain: boolean = false; // 0x4: Secondary Terrain Type is SECONDARY_TERRAIN_CHASM
-	is_invalid: boolean = false;  // 0x5: Set when floor generation fails (except that it's never actually set..?)
-	floor_size: FloorSize = FloorSize.FLOOR_SIZE_LARGE;  // 0x6
-	has_maze: boolean = false;  // 0x7: This floor has a maze room
-	no_enemy_spawn: boolean = false;  // 0x8: No enemies should spawn on this floor
-	kecleon_shop_chance: number = 100;  // 0xC
-	monster_house_chance: number = 0;  // 0x10
-	num_rooms: number = 0;  // 0x14: Number of rooms this floor should have
-	secondary_structures_budget: number = 0;  // 0x18
+	is_invalid: boolean = false; // 0x5: Set when floor generation fails (except that it's never actually set..?)
+	floor_size: FloorSize = FloorSize.FLOOR_SIZE_LARGE; // 0x6
+	has_maze: boolean = false; // 0x7: This floor has a maze room
+	no_enemy_spawn: boolean = false; // 0x8: No enemies should spawn on this floor
+	kecleon_shop_chance: number = 100; // 0xC
+	monster_house_chance: number = 0; // 0x10
+	num_rooms: number = 0; // 0x14: Number of rooms this floor should have
+	secondary_structures_budget: number = 0; // 0x18
 
 	//Location of the hidden stairs, -1 indicates no Hidden Stairs
-	hidden_stairs_spawn_x: number = 0;  // 0x1C
-	hidden_stairs_spawn_y: number = 0;  // 0x1E
+	hidden_stairs_spawn_x: number = 0; // 0x1C
+	hidden_stairs_spawn_y: number = 0; // 0x1E
 
 	//Location of the middle of the kecleon shop, if applicable
-	kecleon_shop_middle_x: number = 0;  // 0x20
-	kecleon_shop_middle_y: number = 0;  // 0x22
-	
-	num_tiles_reachable_from_stairs: number = 0;  // 0x24 Number of tiles reachable from the stairs assuming normal mobility
+	kecleon_shop_middle_x: number = 0; // 0x20
+	kecleon_shop_middle_y: number = 0; // 0x22
+
+	num_tiles_reachable_from_stairs: number = 0; // 0x24 Number of tiles reachable from the stairs assuming normal mobility
 	layout: FloorLayout = FloorLayout.LAYOUT_LARGE; // 0x28
-	hidden_stairs_type: HiddenStairsType = HiddenStairsType.HIDDEN_STAIRS_NONE;  // 0x2C
-	
+	hidden_stairs_type: HiddenStairsType = HiddenStairsType.HIDDEN_STAIRS_NONE; // 0x2C
+
 	// The limits of the Kecleon Shop, if applicable
-	kecleon_shop_min_x: number = 0;  // 0x30
-	kecleon_shop_min_y: number = 0;  // 0x34
-	kecleon_shop_max_x: number= 0;  // 0x38
-	kecleon_shop_max_y: number = 0;  // 0x3C
-};
+	kecleon_shop_min_x: number = 0; // 0x30
+	kecleon_shop_min_y: number = 0; // 0x34
+	kecleon_shop_max_x: number = 0; // 0x38
+	kecleon_shop_max_y: number = 0; // 0x3C
+}
 
 /**
  * Dungeon Generation Info provides additional information about dungeon generation
  * at runtime.
  */
-export class DungeonGenerationInfo
-{
-	force_create_monster_house: boolean = false;  // 0x0
-	monster_house_room: number = -1;  // 0x5
-	hidden_stairs_type: HiddenStairsType = HiddenStairsType.HIDDEN_STAIRS_NONE;  // 0x8
-	fixed_room_id: number = 0;  // 0x16
+export class DungeonGenerationInfo {
+	force_create_monster_house: boolean = false; // 0x0
+	monster_house_room: number = -1; // 0x5
+	hidden_stairs_type: HiddenStairsType = HiddenStairsType.HIDDEN_STAIRS_NONE; // 0x8
+	fixed_room_id: number = 0; // 0x16
 	floor_generation_attempts: number = 0; //0x1A
-	player_spawn_x: number = -1;  // 0x8C1C
+	player_spawn_x: number = -1; // 0x8C1C
 	player_spawn_y: number = -1;
-	stairs_spawn_x: number = -1;  // 0x8C20
+	stairs_spawn_x: number = -1; // 0x8C20
 	stairs_spawn_y: number = -1;
-	hidden_stairs_spawn_x: number = -1;  // 0x8C24
+	hidden_stairs_spawn_x: number = -1; // 0x8C24
 	hidden_stairs_spawn_y: number = -1;
 }
 
 /**
  * NA: 02353538
  * Dungeon - Essentially the master class for just about all properties.
- * 
+ *
  * Holds various key data, as well as the dungeon map: list_tiles
  */
-export class Dungeon 
-{
-	id: number = 1;  // 0x748: Current Dungeon ID
-	floor: number = 1;  // 0x749: Current floor number
-	rescue_floor: number = 1;  // 0x751
-	nonstory_flag: boolean = true;  // 0x75C
+export class Dungeon {
+	id: number = 1; // 0x748: Current Dungeon ID
+	floor: number = 1; // 0x749: Current floor number
+	rescue_floor: number = 1; // 0x751
+	nonstory_flag: boolean = true; // 0x75C
 	mission_destination: MissionDestinationInfo = new MissionDestinationInfo(); //0x760
-	dungeon_objective: DungeonObjectiveType = DungeonObjectiveType.OBJECTIVE_NORMAL;  // 0x798
-	kecleon_shop_min_x: number = 0;  // 0xCD14
-	kecleon_shop_min_y: number = 0;  // 0xCD18
-	kecleon_shop_max_x: number = 0;  // 0xCD1C
-	kecleon_shop_max_y: number = 0;  // 0xCD20
-	num_items: number = 0;  // 0x12AFA This number is generated, not a property
-	guaranteed_item_id: number = 0;  // 0x2C9E8
-	n_floors_plus_one: number = 4;  // 0x2CAF4: One more than the maximum number of floors in the current dungeon
+	dungeon_objective: DungeonObjectiveType = DungeonObjectiveType.OBJECTIVE_NORMAL; // 0x798
+	kecleon_shop_min_x: number = 0; // 0xCD14
+	kecleon_shop_min_y: number = 0; // 0xCD18
+	kecleon_shop_max_x: number = 0; // 0xCD1C
+	kecleon_shop_max_y: number = 0; // 0xCD20
+	num_items: number = 0; // 0x12AFA This number is generated, not a property
+	guaranteed_item_id: number = 0; // 0x2C9E8
+	n_floors_plus_one: number = 4; // 0x2CAF4: One more than the maximum number of floors in the current dungeon
 
 	//field_0x12aa4: boolean = false;
 	//field_0x3fc2: boolean = false;
 
 	list_tiles: Tile[][] = []; //This is the dungeon map
-	fixed_room_tiles: Tile[][]  = [];
+	fixed_room_tiles: Tile[][] = [];
 	active_traps: number[] = new Array(64);
-};
+}
