@@ -8,7 +8,7 @@ Logo by [@sgtmug](https://twitter.com/sergeantmug)
  
 dungeon-mystery is a Typescript implementation of Pokémon Mystery Dungeon: Explorers of Sky's dungeon algorithm.
 
-This package is the main code behind Pokémon Dungeoneer, a web tool for generating and visualizing PMD layouts.
+This package is the main code behind [Pokémon Dungeoneer](https://github.com/EpicYoshiMaster/pokemon-dungeoneer), a web tool for generating and visualizing PMD layouts.
 
 It's built to replicate the original algorithm as closely as possible, while also being much more readable and useful as a reference.
 
@@ -144,7 +144,7 @@ This project could not exist without the amazing work by members of the communit
 
 [pmdsky-debug](https://github.com/UsernameFodder/pmdsky-debug) - Central resource for debugging information to reverse engineer Explorers of Sky
 
-[dungeon-eos](https://github.com/SkyTemple/dungeon-eos) - Python implementation of the dungeon algorithm used as part of [Skytemple](https://skytemple.org/)
+[dungeon-eos](https://github.com/SkyTemple/dungeon-eos) - Python implementation of the dungeon algorithm used as part of [SkyTemple](https://skytemple.org/)
 
 [Map generation](https://docs.google.com/document/d/1HuJIEOtTYCtSHK6R-sp4LC2gk1RDL_mfoFL6Qn_wdkE/edit) - Document by End45 detailing the map generation process
 
