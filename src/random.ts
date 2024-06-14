@@ -68,7 +68,9 @@ export class DungeonRandom {
 	 * returns: pseudorandom integer on the interval [0, 65535]
 	 */
 	Rand16Bit(): number {
-		let result;
+		//let result;
+
+		/*
 
 		if (!this.use_secondary) {
 			this.seq_num_primary++;
@@ -87,7 +89,9 @@ export class DungeonRandom {
 			result = result * 0x10000;
 		}
 
-		return result >> 0x10; //Right shift 16
+		return result >> 0x10; //Right shift 16*/
+
+		return this.RandInt(65536);
 	}
 
 	/**
@@ -132,5 +136,13 @@ export class DungeonRandom {
 	DungeonRngSetSecondary(secondary_index: number) {
 		this.use_secondary = true;
 		this.idx_secondary = secondary_index;
+	}
+
+	/**
+	 * NA:
+	 * DungeonRngSetPrimary - Sets the Dungeon PRNG to use the primary LCG for subsequent random number generation.
+	 */
+	DungeonRngSetPrimary() {
+		this.use_secondary = false;
 	}
 }

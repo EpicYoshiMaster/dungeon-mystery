@@ -9,6 +9,8 @@ export class GenerationConstants {
 	max_number_monster_house_item_spawns: number = 7; //Maximum number of items allowed to be spawned in a monster house.
 	max_number_monster_house_enemy_spawns: number = 30; //Maximum number of enemies allowed to be spawned in a monster house.
 	first_dungeon_id_allow_monster_house_traps: number = 28; //The first story dungeon that allows traps in monster houses (Dark Hill by default)
+	kecleon_shop_boost_chance_multiplier: number = 1.19921875; //The amount to multiply the probability of a kecleon shop spawning by if the chance is boosted on this floor
+	hidden_stairs_spawn_chance_multiplier: number = 1.19921875; //The amount to multiply the probability of hidden stairs spawning by if the chance is boosted on this floor
 }
 
 /**

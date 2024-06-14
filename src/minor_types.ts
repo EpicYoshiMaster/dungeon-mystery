@@ -1,17 +1,20 @@
-import { TerrainType, MissionType, MissionSubtype, MissionSubtypeChallenge } from './enums';
+import { TerrainType, MissionType, MissionSubtype, MissionSubtypeChallenge, MonsterBehavior } from './enums';
 
 /**
- * room_flags - 1-byte bitfield
+ * room_flags - 1-byte bitfield within FloorProperties which 
+ * specifies whether rooms are allowed to generate secondary terrain, 
+ * and whether rooms imperfections are permitted. 
  */
 export class RoomFlags {
 	f_secondary_terrain_generation: boolean = false; // 0x0: Is secondary terrain generation allowed
-	//room_flags_unk1: number; //1
+	//room_flags_unk1: number = 1;
 	f_room_imperfections: boolean = false; // 0x2: Are room imperfections allowed
-	//room_flags_unk3: number; //5
+	//room_flags_unk3: number = 5;
 }
 
 /**
- * terrain_flags -
+ * terrain_flags - 2-byte bitfield within Tile which determines some of the 
+ * underlying behaviors of the tile.
  */
 export class TerrainFlags {
 	terrain_type: TerrainType = TerrainType.TERRAIN_WALL;
@@ -27,19 +30,20 @@ export class TerrainFlags {
 	f_impassable_wall: boolean = false;
 	f_in_kecleon_shop: boolean = false;
 	f_in_monster_house: boolean = false;
-	terrain_flags_unk7: boolean = false;
+	//terrain_flags_unk7: boolean = false;
 	f_unbreakable: boolean = false; // Cannot be broken by Absolute Mover. Set naturally on key doors.
 	f_stairs: boolean = false; // Tile is any type of "stairs" (normal stairs, Hidden Stairs, Warp Zone)
-	terrain_flags_unk10: boolean = false;
-	f_key_door: boolean = false;
-	f_key_door_key_locked: boolean = false;
-	f_key_door_escort_locked: boolean = false; // Key door is locked and requires an escort to open (for Sealed Chamber missions)
-	terrain_flags_unk14: boolean = false;
+	//terrain_flags_unk10: boolean = false;
+	//f_key_door: boolean = false;
+	//f_key_door_key_locked: boolean = false;
+	//f_key_door_escort_locked: boolean = false; // Key door is locked and requires an escort to open (for Sealed Chamber missions)
+	//terrain_flags_unk14: boolean = false;
 	f_unreachable_from_stairs: boolean = false;
 }
 
 /**
- * spawn_flags - 2-byte bitfield
+ * spawn_flags - 2-byte bitfield within Tile which keeps track of the kinds of 
+ * entities which should be spawned here.
  */
 export class SpawnFlags {
 	f_stairs: boolean = false;
@@ -72,4 +76,15 @@ export class StairsReachableFlags {
 	f_starting_point: boolean = false;
 	f_in_visit_queue: boolean = false;
 	f_visited: boolean = false;
+}
+
+/**
+ * spawned_shopkeeper_data - Necessary information to spawn a Kecleon shopkeeper
+ */
+export class SpawnedShopkeeperData {
+	monster_id: number = 0;
+	behavior: MonsterBehavior = MonsterBehavior.BEHAVIOR_NORMAL_ENEMY_0x0;
+	valid: boolean = false;
+	pos_x: number = 0;
+	pos_y: number = 0;
 }

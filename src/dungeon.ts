@@ -16,9 +16,13 @@ import {
 	GenerationType,
 	MajorGenerationType,
 	MinorGenerationType,
+	GameId,
+	SecondaryTerrainType,
+	MonsterBehavior,
+	MissionSubtypeExplore,
 } from './enums';
 import { GridCell, Tile, FloorProperties, FloorGenerationStatus, Dungeon, DungeonGenerationInfo } from './key_types';
-import { RoomFlags, StairsReachableFlags } from './minor_types';
+import { RoomFlags, SpawnedShopkeeperData, StairsReachableFlags } from './minor_types';
 import { DungeonRandom } from './random';
 import { GenerationConstants, AdvancedGenerationSettings } from './settings';
 
@@ -39,6 +43,12 @@ let advancedGenerationSettings: AdvancedGenerationSettings;
 let grid_cell_start_x: number[] = [];
 let grid_cell_start_y: number[] = [];
 
+//
+// Flags (if this becomes any larger we getting a new type wooooo)
+//
+
+let HIDDEN_STAIRS_SPAWN_BLOCKED: boolean = false;
+
 let dungeonGenerationCallback: DungeonGenerationCallback;
 let generationCallbackFrequency: GenerationStepLevel;
 
@@ -50,7 +60,222 @@ export type DungeonGenerationCallback = (
 	floor_generation_status: FloorGenerationStatus,
 	grid_cell_start_x: number[],
 	grid_cell_start_y: number[]
-) => void;
+) => void; 
+
+/**
+ * NA: 02342F08
+ * ResetHiddenStairsSpawn - Resets the hidden stairs spawn location. Also resets a flag relating to whether hidden stairs spawning has been blocked, not yet determined if relevant anywhere else here.
+ */
+function ResetHiddenStairsSpawn() {
+	statusData.hidden_stairs_spawn_x = -1;
+	statusData.hidden_stairs_spawn_y = -1;
+
+	HIDDEN_STAIRS_SPAWN_BLOCKED = false;
+}
+
+/**
+ * NA: 02349208
+ * IsDestinationFloor - Checks if the current floor is a mission destination floor.
+ * 
+ * Returns: true if we are on a destination floor, false otherwise.
+ */
+function IsDestinationFloor() {
+	return dungeonData.mission_destination.is_destination_floor;
+}
+
+/**
+ * NA: 023385EC
+ * ShouldBoostHiddenStairsSpawnChance - Checks if we should boost the chance for hidden stairs to spawn on this floor.
+ * 
+ * Returns: the value of boost_hidden_stairs_spawn_chanace on Dungeon
+ */
+function ShouldBoostHiddenStairsSpawnChance() {
+	return dungeonData.boost_hidden_stairs_spawn_chance;
+}
+
+/**
+ * NA: 02338604
+ * SetShouldBoostHiddenStairsSpawnChance - Sets the boost_hidden_stairs_spawn_chance field on Dungeon to the given value.
+ */
+function SetShouldBoostHiddenStairsSpawnChance(value: boolean) {
+	dungeonData.boost_hidden_stairs_spawn_chance = value;
+}
+
+/**
+ * NA: 02342D9C
+ * GetHiddenStairsType - 
+ * 
+ * Returns:
+ * 
+ */
+function GetHiddenStairsType(floor_props: FloorProperties) {
+
+	let hidden_stairs_type = HiddenStairsType.HIDDEN_STAIRS_NONE;
+
+	if(dungeonData.dungeon_game_version_id === GameId.GAME_SKY) {
+		dungeonRand.DungeonRngSetSecondary(4);
+
+		if(dungeonGenerationInfo.fixed_room_id === 0) {
+			if(floor_props.hidden_stairs_type === HiddenStairsType.HIDDEN_STAIRS_RANDOM_SECRET_BAZAAR_OR_SECRET_ROOM) {
+
+				const coin_flip = (dungeonRand.Rand16Bit() & 8) !== 0; //Check if third bit is 1
+
+				hidden_stairs_type = (coin_flip) ? HiddenStairsType.HIDDEN_STAIRS_SECRET_BAZAAR : HiddenStairsType.HIDDEN_STAIRS_SECRET_ROOM;
+			}
+			else {
+
+				//For reasons I do not understand, internally this value is actually calculated as
+				//hidden_stairs_type = floor_props.hidden_stairs_type + 1;
+
+				//I have to assume it has some meaning that isn't known in FloorProperties, 
+				//but since it does not make sense here, I chose not to do so.
+				hidden_stairs_type = floor_props.hidden_stairs_type;
+			}
+
+			if(dungeonData.dungeon_objective === DungeonObjectiveType.OBJECTIVE_RESCUE || IsDestinationFloor()) {
+				HIDDEN_STAIRS_SPAWN_BLOCKED = true;
+			}
+			else if(hidden_stairs_type != HiddenStairsType.HIDDEN_STAIRS_NONE) {
+
+				const random_value = dungeonRand.Rand16Bit() % 100;
+
+				let hidden_stairs_spawn_chance = floor_props.hidden_stairs_spawn_chance;
+
+				if(ShouldBoostHiddenStairsSpawnChance()) {
+					SetShouldBoostHiddenStairsSpawnChance(false);
+
+					hidden_stairs_spawn_chance = Math.floor(hidden_stairs_spawn_chance * generationConstants.hidden_stairs_spawn_chance_multiplier);
+				}
+
+				if(hidden_stairs_spawn_chance <= random_value) {
+					HIDDEN_STAIRS_SPAWN_BLOCKED = true;
+				}
+			}
+		}
+
+		dungeonRand.DungeonRngSetPrimary();
+	}
+
+	return hidden_stairs_type;
+}
+
+/**
+ * NA: 023384C0
+ * ShouldBoostKecleonShopSpawnChance - Checks if we should boost the chance for a kecleon shop to spawn on this floor.
+ * 
+ * Returns: the value of boost_kecleon_shop_spawn_chanace on Dungeon
+ */
+function ShouldBoostKecleonShopSpawnChance() {
+	return dungeonData.boost_kecleon_shop_spawn_chance;
+}
+
+/**
+ * NA: 023384D8
+ * SetShouldBoostKecleonShopSpawnChance - Sets the boost_kecleon_shop_spawn_chance field on Dungeon to the given value.
+ */
+function SetShouldBoostKecleonShopSpawnChance(value: boolean) {
+	dungeonData.boost_kecleon_shop_spawn_chance = value;
+}
+
+/**
+ * NA: 02342EBC
+ * GetFinalKecleonShopSpawnChance -
+ */
+function GetFinalKecleonShopSpawnChance(base_kecleon_shop_chance: number) {
+	if(!ShouldBoostKecleonShopSpawnChance()) return base_kecleon_shop_chance;
+
+	SetShouldBoostKecleonShopSpawnChance(false);
+
+	return Math.floor(base_kecleon_shop_chance * generationConstants.kecleon_shop_boost_chance_multiplier);
+}
+
+
+/**
+ * NA: 023385C4
+ * IsSecretBazaar - Checks if the current floor is the Secret Bazaar fixed floor (Fixed Room ID 0x70).
+ */
+function IsSecretBazaar() {
+	return dungeonGenerationInfo.fixed_room_id === 0x70;
+}
+
+/**
+ * NA: 0233865C
+ * IsSecretRoom - Checks if the current floor is the Secret Room fixed floor (Fixed Room ID 0x71).
+ */
+function IsSecretRoom() {
+	return dungeonGenerationInfo.fixed_room_id === 0x71;
+}
+
+/**
+ * NA: 0234450C
+ * IsHiddenStairsFloor - Checks if the current floor is a Secret Bazaar or Secret Room.
+ */
+function IsHiddenStairsFloor() {
+	return IsSecretBazaar() || IsSecretRoom();
+}
+
+/**
+ * NA: 023492B0
+ * IsGoldenChamber - Checks if the current floor is a Golden Chamber floor.
+ */
+function IsGoldenChamber() {
+	return IsCurrentMissionTypeExact(MissionType.MISSION_EXPLORE_WITH_CLIENT, MissionSubtypeExplore.MISSION_EXPLORE_GOLDEN_CHAMBER);
+}
+
+/**
+ * NA: 0234921C
+ * IsCurrentMissionType - Checks if the current floor has an active mission destination of the given type (with any subtype)
+ */
+function IsCurrentMissionType(mission_type: MissionType) {
+	return dungeonData.mission_destination.is_destination_floor && mission_type === dungeonData.mission_destination.mission_type;
+}
+
+/**
+ * NA: 0233A654
+ * IsNormalFloor - Checks if the current floor is considered a "normal" layout.
+ * 
+ * This means that it is not any of the following:
+ * - A Hidden Stair Floor (Secret Bazaar, Secret Room)
+ * - Golden Chamber
+ * - Challenge Request Floor
+ * - Outlaw Hideout
+ * - Treasure Memo Floor
+ * - A Full-Room Fixed Floor (ID < 0xA5)
+ */
+function IsNormalFloor() {
+	if(
+		IsHiddenStairsFloor() ||
+		IsGoldenChamber() ||
+		IsCurrentMissionType(MissionType.MISSION_CHALLENGE_REQUEST) ||
+		IsCurrentMissionTypeExact(MissionType.MISSION_ARREST_OUTLAW, MissionSubtypeOutlaw.MISSION_OUTLAW_HIDEOUT) ||
+		IsCurrentMissionType(MissionType.MISSION_TREASURE_MEMO) ||
+		(dungeonGenerationInfo.fixed_room_id != 0 && dungeonGenerationInfo.fixed_room_id <= 0xA4)
+		) return false;
+
+	return true;
+}
+
+/**
+ * NA: 02342C68
+ * ResetImportantSpawnPositions - Resets important spawn positions (player spawn, stairs, and hidden stairs) to their default values.
+ */
+function ResetImportantSpawnPositions(genInfo: DungeonGenerationInfo) {
+	genInfo.player_spawn_x = -1;
+	genInfo.player_spawn_y = -1;
+	genInfo.stairs_spawn_x = -1;
+	genInfo.stairs_spawn_y = -1;
+	genInfo.hidden_stairs_spawn_x = -1;
+	genInfo.hidden_stairs_spawn_y = -1;
+}
+/**
+ * NA: 0233C310
+ * IsNotFullFloorFixedRoom - Checks if a fixed room ID does not correspond to a fixed, full-floor layout.
+ * 
+ * The first non-full floor fixed room corresponds to 0xA5 which is a Sealed Chamber.
+ */
+function IsNotFullFloorFixedRoom(fixed_room_id: number) {
+	return !(fixed_room_id > 0 && fixed_room_id < 0xA5);
+}
 
 /**
  * NA: 02340CAC
@@ -106,14 +331,197 @@ function ResetFloor() {
 		}
 	}
 
-	dungeonData.num_items = 0;
+	dungeonData.n_items = 0;
 
 	//Reset Traps
-	dungeonData.active_traps = Array(64);
+	dungeonData.traps = Array(64);
 
 	grid_cell_start_x = [];
 	grid_cell_start_y = [];
 	OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MAJOR, MajorGenerationType.GEN_TYPE_RESET_FLOOR);
+}
+
+/**
+ * NA: 0234217C
+ * CreateRoomsAndAnchorsFixed - 
+ */
+function CreateRoomsAndAnchorsFixed(grid: GridCell[][], grid_size_x: number, grid_size_y: number, list_x: number[], list_y: number[], unk: number, grid_scale_x: number, grid_scale_y: number) {
+	let local_40 = 0;
+	
+	for(let y = 0; y < grid_size_y; y++) {
+		for(let x = 0; x < grid_size_x; x++) {
+			const cur_val_x = list_x[x] + 2;
+			const cur_val_y = list_y[y] + 2;
+
+			let range_x = (list_x[x + 1] - list_x[x]) - 4;
+			let range_y = (list_y[y + 1] - list_y[y]) - 4; //In CreateRoomsAndAnchors this value is usually -3
+
+			if(grid_size_x < 3) {
+				range_x = 14;
+			}
+
+			let unk_x1 = 5;
+			let unk_y1 = 5;
+
+			if(grid_size_y === 1) {
+				range_y = 24;
+			}
+
+			if(!grid[x][y].is_room) {
+				unk_x1 = 2;
+				unk_y1 = 2;
+
+				if(x === 0) {
+					unk_x1 = 1;
+				}
+
+				if(y === 0) {
+					unk_y1 = 1;
+				}
+
+				let unk_x2 = 4;
+				let unk_y2 = 4;
+
+				if(x === grid_size_x - 1) {
+					unk_x2 = 2;
+				}
+
+				if(y === grid_size_y - 1) {
+					unk_y2 = 2;
+				}
+
+				const pt_x = dungeonRand.RandRange(cur_val_x + unk_x1, (cur_val_x + range_x) - unk_x2);
+				const pt_y = dungeonRand.RandRange(cur_val_y + unk_y1, (cur_val_y + range_y) - unk_y2);
+
+				grid[x][y].start_x = pt_x;
+				grid[x][y].end_x = pt_x + 1;
+				grid[x][y].start_y = pt_y;
+				grid[x][y].end_y = pt_y + 1;
+
+				//Flag the tile as open
+				dungeonData.list_tiles[pt_x][pt_y].terrain_flags.terrain_type = TerrainType.TERRAIN_NORMAL;
+
+				//Flag the tile as not a room
+				//Note: In CreateRoomsAndAnchors, this would normally be set to 0xFE
+				dungeonData.list_tiles[pt_x][pt_y].room_index = 0xFF;
+			}
+			else {
+				if(local_40 === unk) {
+					unk_x1 = cur_val_x + grid_scale_x;
+					range_y = cur_val_y + grid_scale_y;
+				}
+				else {
+
+				}
+
+				local_40++;
+			}
+		}
+	}
+}
+
+/**
+ * NA: 0233C32C
+ * GenerateFixedRoom - 
+ */
+function GenerateFixedRoom(fixed_room_id: number, floor_props: FloorProperties) {
+	let bVar5;
+
+	let grid_scale_x = 4; //idk yet gl
+	let grid_scale_y = 3; //idk yet gl
+
+	if(grid_scale_x === 0 || grid_scale_y === 0) {
+		GenerateOneRoomMonsterHouseFloor();
+		bVar5 = false;
+	}
+	else {
+		bVar5 = IsNotFullFloorFixedRoom(fixed_room_id);
+
+		if(!bVar5) {
+			dungeonData.fixed_room_width = grid_scale_x;
+			dungeonData.fixed_room_height = grid_scale_y;
+			//no fuckin clue
+
+			statusData.field_0xA = false;
+			statusData.field_0xB = false;
+
+			for(let y = 5; y < grid_scale_y + 5; y++) {
+				for(let x = 5; x < grid_scale_x + 5; x++) {
+					let action = GetNextFixedRoomAction();
+
+					dungeonData.list_tiles[x][y].terrain_flags.f_unbreakable = true;
+					dungeonData.list_tiles[x][y].field_0x6 = false;
+
+					PlaceFixedRoomTile(dungeonData.list_tiles[x][y], action, x, y);
+
+					if(something) {
+						dungeonGenerationInfo.stairs_spawn_x = x;
+						dungeonGenerationInfo.stairs_spawn_y = y;
+					}
+				}
+			}
+
+			//...
+
+			FinalizeJunctions();
+			bVar5 = true;
+		}
+		else {
+
+			let grid_size_x = Math.floor(FLOOR_MAX_X / (grid_scale_x  + 4));
+			let grid_size_y = Math.floor(FLOOR_MAX_Y / (grid_scale_y  + 4));
+
+			if(grid_size_x < 2) {
+				grid_size_x = 1;
+			}
+
+			if(grid_size_y < 2) {
+				grid_size_y = 1;
+			}
+
+			const { list_x, list_y } = GetGridPositions(grid_size_x, grid_size_y);
+
+			grid_cell_start_x = list_x;
+			grid_cell_start_y = list_y;
+
+			let unk = 0;
+
+			let grid = InitDungeonGrid(grid_size_x, grid_size_y);
+			AssignRooms(grid, grid_size_x, grid_size_y, floor_props.room_density);
+
+			for(let cursor_x = 0; cursor_x < grid_size_x; cursor_x++) {
+				for(let cursor_y = 0; cursor_y < grid_size_y; cursor_y++) {
+					grid[cursor_x][cursor_y].field_0x1b = true; //idk
+				}
+			}
+
+			let cursor_x = 0;
+			let cursor_y = 0;
+
+			for(let i = 0; i < 64; i++) {
+				cursor_x = dungeonRand.RandInt(grid_size_x);
+				cursor_y = dungeonRand.RandInt(grid_size_y);
+
+				unk = grid_size_x * cursor_y + cursor_x;
+
+				if(grid[cursor_x][cursor_y].is_room) break;
+			}
+
+			CreateRoomsAndAnchorsFixed(grid, grid_size_x, grid_size_y, list_x, list_y, unk, grid_scale_x, grid_scale_y);
+
+			if(grid_size_x !== 1 || grid_size_y !== 1) {
+				AssignGridCellConnections(grid, grid_size_x, grid_size_y, cursor_x, cursor_y, floor_props);
+				CreateGridCellConnections(grid, grid_size_x, grid_size_y, list_x, list_y, true);
+				EnsureConnectedGrid(grid, grid_size_x, grid_size_y, list_x, list_y);
+			}
+
+			FUN_02342594(grid[cursor_x][cursor_y].start_x, fixed_room_id);
+
+			bVar5 = false;
+		}
+	}
+
+	return bVar5;
 }
 
 /**
@@ -341,7 +749,7 @@ function CreateRoomsAndAnchors(grid: GridCell[][], grid_size_x: number, grid_siz
 				dungeonData.list_tiles[pt_x][pt_y].terrain_flags.terrain_type = TerrainType.TERRAIN_NORMAL;
 
 				//Set the room index to 0xFE for anchor
-				dungeonData.list_tiles[pt_x][pt_y].room_index = 0xfe;
+				dungeonData.list_tiles[pt_x][pt_y].room_index = 0xFE;
 
 				OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_MINOR, MinorGenerationType.GEN_TYPE_CREATE_ANCHOR);
 			} else {
@@ -1613,7 +2021,7 @@ function GenerateMazeRoom(grid: GridCell[][], grid_size_x: number, grid_size_y: 
  * Floor Types:
  * 	0 - Current floor is "normal"
  * 	1 - Current floor is a fixed floor
- * 	2 - Current Floor has a rescue point
+ * 	2 - Current floor has a rescue point
  */
 function GetFloorType() {
 	if (dungeonData.dungeon_objective === DungeonObjectiveType.OBJECTIVE_RESCUE && dungeonData.floor === dungeonData.rescue_floor) {
@@ -1801,7 +2209,7 @@ function IsOutlawMonsterHouseFloor() {
  * a special monster, either a target to rescue or an enemy to defeat.
  *
  * This function traditionally accepts a mission_destination_info, but this is embedded
- * in the DungeonData class for this implementation.
+ * in the Dungeon class for this implementation.
  */
 function FloorHasMissionMonster() {
 	if (dungeonData.mission_destination.is_destination_floor) {
@@ -3755,7 +4163,7 @@ function SpawnStairs(x: number, y: number, hidden_stairs_type: HiddenStairsType)
 		statusData.stairs_room_index = dungeonData.list_tiles[x][y].room_index;
 	} else {
 		//Hidden stairs
-		if (statusData.second_spawn) {
+		if (HIDDEN_STAIRS_SPAWN_BLOCKED) {
 			statusData.hidden_stairs_spawn_x = x;
 			statusData.hidden_stairs_spawn_y = y;
 		} else {
@@ -3912,7 +4320,7 @@ function SpawnNonEnemies(floor_props: FloorProperties, is_empty_monster_house: b
 			num_items += 1;
 		}
 
-		dungeonData.num_items = num_items + 1;
+		dungeonData.n_items = num_items + 1;
 
 		if (num_items + 1 > 0) {
 			//Randomly select among the valid item spawn spots
@@ -4540,6 +4948,243 @@ function StairsAlwaysReachable(x_stairs: number, y_stairs: number, mark_unreacha
 }
 
 /**
+ * NA: 022F73B4
+ * FloorNumberIsEven - Determines if the current floor number is an even number.
+ * 
+ * One special check is made for Labyrinth Cave B10F (the Gabite boss fight)
+ * 
+ * Returns true if the floor number is even, false otherwise.
+ */
+function FloorNumberIsEven() {
+	//Labyrinth Cave
+	if(dungeonData.id === 0x5B && dungeonData.floor === 10) {
+		return false;
+	}
+
+	return (dungeonData.floor & 1) === 0;
+}
+
+/**
+ * NA: 022F73EC
+ * GetKecleonIdToSpawnByFloor - Returns the kecleon ID to spawn for this floor.
+ * 
+ * If the floor is even, returns female Kecleon's id (0x3D7), if odd, returns male Kecleon's id (0x17F)
+ */
+function GetKecleonIdToSpawnByFloor() {
+	return FloorNumberIsEven() ? 0x3D7 : 0x17F;
+}
+
+/**
+ * NA: 022FE198
+ * MarkShopkeeperSpawn - 
+ */
+function MarkShopkeeperSpawn(spawn_x: number, spawn_y: number, monster_id: number, behavior: MonsterBehavior) {
+
+	for(let i = 0; i < 8; i++) {
+		if(i >= dungeonData.shopkeeper_spawn_count) {
+			dungeonData.shopkeeper_spawns[dungeonData.shopkeeper_spawn_count] = new SpawnedShopkeeperData();
+			dungeonData.shopkeeper_spawns[dungeonData.shopkeeper_spawn_count].valid = true;
+			dungeonData.shopkeeper_spawns[dungeonData.shopkeeper_spawn_count].pos_x = spawn_x;
+			dungeonData.shopkeeper_spawns[dungeonData.shopkeeper_spawn_count].pos_y = spawn_y;
+			dungeonData.shopkeeper_spawns[dungeonData.shopkeeper_spawn_count].monster_id = monster_id;
+			dungeonData.shopkeeper_spawns[dungeonData.shopkeeper_spawn_count].behavior = behavior;
+			dungeonData.shopkeeper_spawn_count++;
+
+			return;
+		}
+
+		if(!dungeonData.shopkeeper_spawns[i].valid) {
+			if(dungeonData.shopkeeper_spawns[i].pos_x === spawn_x && dungeonData.shopkeeper_spawns[i].pos_y === spawn_y) {
+				dungeonData.shopkeeper_spawns[i].monster_id = monster_id;
+				dungeonData.shopkeeper_spawns[i].behavior = behavior;
+				return;
+			}
+		}
+	}
+}
+
+/**
+ * NA: 023427E4
+ * FUN_023427E4 - Trims kecleon shops, also assigns items on the shop
+ */
+function FUN_023427E4(floor_props: FloorProperties) {
+
+
+	let iVar8 = 3, iVar9 = 3;
+
+	for(let i = 0; i < 0x14; i++) {
+		iVar8 = dungeonRand.RandRange(3, (statusData.kecleon_shop_max_x - statusData.kecleon_shop_min_x) - 2);
+		if(iVar8 < 3) {
+			iVar8 = 3;
+		}
+		if(2 < iVar8) break;
+	}
+
+	for(let i = 0; i < 0x14; i++) {
+		iVar9 = dungeonRand.RandRange(3, (statusData.kecleon_shop_max_y - statusData.kecleon_shop_min_y) - 2);
+		if(iVar8 < 3) {
+			iVar9 = 3;
+		}
+		if(2 < iVar9) break;
+	}
+
+	let rand_value = dungeonRand.RandRange(2, 4);
+	let i = 0;
+
+	//Trim down the shop borders a random number of times on the left and right
+	while((i < rand_value) && (iVar8 < statusData.kecleon_shop_max_x - statusData.kecleon_shop_min_x)) {
+		let coin_flip = dungeonRand.RandInt(100);
+
+		if(coin_flip < 50) {
+			//Trim the left side of the shop
+			for(let y = statusData.kecleon_shop_min_y; y < statusData.kecleon_shop_max_y; y++) {
+				dungeonData.list_tiles[statusData.kecleon_shop_min_x][y].terrain_flags.f_in_kecleon_shop = false;
+			}
+			
+			statusData.kecleon_shop_min_x += 1;
+		}
+		else {
+			//Trim the right side of the shop
+			for(let y = statusData.kecleon_shop_min_y; y < statusData.kecleon_shop_max_y; y++) {
+				dungeonData.list_tiles[statusData.kecleon_shop_max_x][y].terrain_flags.f_in_kecleon_shop = false;
+			}
+			
+			statusData.kecleon_shop_max_x -= 1;
+		}
+
+		i++;
+	}
+
+	//Trim down the shop borders a random number of times on the top and bottom
+	while((i < rand_value) && (iVar8 < statusData.kecleon_shop_max_y - statusData.kecleon_shop_min_y)) {
+		let coin_flip = dungeonRand.RandInt(100);
+
+		if(coin_flip < 50) {
+			//Trim the top side of the shop
+			for(let x = statusData.kecleon_shop_min_x; x < statusData.kecleon_shop_max_x; x++) {
+				dungeonData.list_tiles[x][statusData.kecleon_shop_min_y].terrain_flags.f_in_kecleon_shop = false;
+			}
+			
+			statusData.kecleon_shop_min_y += 1;
+		}
+		else {
+			//Trim the bottom side of the shop
+			for(let x = statusData.kecleon_shop_min_x; x < statusData.kecleon_shop_max_x; x++) {
+				dungeonData.list_tiles[x][statusData.kecleon_shop_max_y].terrain_flags.f_in_kecleon_shop = false;
+			}
+			
+			statusData.kecleon_shop_max_y -= 1;
+		}
+
+		i++;
+	}
+
+	for(let x = statusData.kecleon_shop_min_x; x < statusData.kecleon_shop_max_x; x++) {
+		for(let y = statusData.kecleon_shop_min_y; y < statusData.kecleon_shop_max_y; y++) {
+			if(dungeonData.list_tiles[x][y].terrain_flags.f_in_kecleon_shop && dungeonData.list_tiles[x][y].terrain_flags.f_corner_cuttable) {
+				dungeonData.list_tiles[x][y].terrain_flags.f_in_kecleon_shop = false;
+			}
+		}
+	}
+
+	let middle_shop_x = (statusData.kecleon_shop_min_x + statusData.kecleon_shop_max_x) / 2;
+	let middle_shop_y = (statusData.kecleon_shop_min_y + statusData.kecleon_shop_max_y) / 2;
+
+	let item_roll_x = 0;
+	let x = middle_shop_x - 1;
+
+	while(x < middle_shop_x + 2) {
+		let item_roll_y = 0;
+		let y = middle_shop_y - 1;
+
+		while(y < middle_shop_y + 2) {
+
+			if(dungeonData.list_tiles[x][y].terrain_flags.f_in_kecleon_shop && 
+				!dungeonData.list_tiles[x][y].terrain_flags.f_in_monster_house &&
+				!dungeonData.list_tiles[x][y].terrain_flags.f_corner_cuttable &&
+				dungeonRand.RandInt(100) < Constants.SHOP_ITEM_CHANCES[item_roll_y * 6 + floor_props.shop_item_positions * 18 + item_roll_x * 2]
+			) {
+				dungeonData.list_tiles[x][y].spawn_or_visibility_flags.f_item = true;
+			}
+
+			y += 1;
+			item_roll_y += 1;
+		}
+
+		x += 1;
+		item_roll_x += 1;
+	}
+}
+
+/**
+ * NA: 0233AF0C
+ * FlagHallwayJunctions - 
+ */
+function FlagHallwayJunctions(start_x: number, start_y: number, end_x: number, end_y: number) {
+	for(let x = start_x; x < end_x; x++) {
+		for(let y = start_y; y < end_y; y++) {
+			let num_adjacent_open_tiles = 0;
+
+			dungeonData.list_tiles[x][y].terrain_flags.f_corner_cuttable = false;
+
+			if(dungeonData.list_tiles[x][y].room_index === 0xFF && dungeonData.list_tiles[x][y].terrain_flags.terrain_type === TerrainType.TERRAIN_NORMAL) {
+				//Tile to the left
+				if(x > 0 && dungeonData.list_tiles[x - 1][y].terrain_flags.terrain_type === TerrainType.TERRAIN_NORMAL) {
+					num_adjacent_open_tiles++;
+				}
+
+				//Tile above
+				if(y > 0 && dungeonData.list_tiles[x][y - 1].terrain_flags.terrain_type === TerrainType.TERRAIN_NORMAL) {
+					num_adjacent_open_tiles++;
+				}
+
+				//Tile to the right
+				if(x < FLOOR_MAX_X && dungeonData.list_tiles[x + 1][y].terrain_flags.terrain_type === TerrainType.TERRAIN_NORMAL) {
+					num_adjacent_open_tiles++;
+				}
+
+				//Tile below
+				if(y > 0 && dungeonData.list_tiles[x][y + 1].terrain_flags.terrain_type === TerrainType.TERRAIN_NORMAL) {
+					num_adjacent_open_tiles++;
+				}
+
+				if(num_adjacent_open_tiles > 2) {
+					dungeonData.list_tiles[x][y].terrain_flags.f_natural_junction = true;
+				}
+			}
+		}
+	}
+}
+
+/**
+ * NA: 02340A0C
+ * ConvertSecondaryTerrainToChasms - Set all secondary terrain tiles to instead be chasm tiles.
+ */
+function ConvertSecondaryTerrainToChasms() {
+	for(let x = 0; x < FLOOR_MAX_X; x++) {
+		for(let y = 0; y < FLOOR_MAX_Y; y++) {
+			if(dungeonData.list_tiles[x][y].terrain_flags.terrain_type === TerrainType.TERRAIN_SECONDARY) {
+				dungeonData.list_tiles[x][y].terrain_flags.terrain_type = TerrainType.TERRAIN_CHASM;
+			}
+		}
+	}
+}
+
+/**
+ * NA: 02342548
+ * ConvertWallsToChasms - Sets all wall tiles to instead be chasm tiles.
+ */
+function ConvertWallsToChasms() {
+	for(let x = 0; x < FLOOR_MAX_X; x++) {
+		for(let y = 0; y < FLOOR_MAX_Y; y++) {
+			if(dungeonData.list_tiles[x][y].terrain_flags.terrain_type === TerrainType.TERRAIN_WALL) {
+				dungeonData.list_tiles[x][y].terrain_flags.terrain_type = TerrainType.TERRAIN_CHASM;
+			}
+		}
+	}
+}
+
+/**
  * NA: 0233A6D8
  * GenerateFloor - The Master Function for generating a dungeon floor
  *
@@ -4562,51 +5207,59 @@ function StairsAlwaysReachable(x_stairs: number, y_stairs: number, mark_unreacha
  * 		- If the loop fails 10 times, defaults to generating a One-Room Monster House
  */
 function GenerateFloor(floor_props: FloorProperties): Tile[][] {
-	//TODO: Continue early GenerateFloor operations
-	//dungeonData.field_0x12aa4 = false;
-	//dungeonData.field_0x3fc2 = false;
+	//These fields are related to items
+	dungeonData.field_0x3fc2 = 0;
+	dungeonData.field_0x3fc3 = 0;
 
+	//Loads fixed room data from BALANCE/fixed.bin into a buffer pointed to by FIXED_ROOM_DATA_PTR
+	//This is then assigned to unk_fixed_room_pointer with a 1-byte offset.
 	//LoadFixedRoomDataVeneer();
-	//value from fixed room data function call
+	//dungeonData.unk_fixed_room_pointer = FUN_02343dc4();
 
-	//dungeonData.field_0x12aa4 = that value;
+	statusData.has_kecleon_shop = false;
+	statusData.has_monster_house = false;
+	statusData.has_maze = false;
+  
+	ResetHiddenStairsSpawn();
+	statusData.no_enemy_spawn = IsOutlawMonsterHouseFloor();
+	statusData.hidden_stairs_type = GetHiddenStairsType(floor_props);
 
-	/*
-	  statusData.has_kecleon_shop = false;
-	  statusData.has_monster_house = false;
-	  statusData.has_maze = false;
-  
-	  ResetHiddenStairsSpawn();
-	  statusData.no_enemy_spawn = IsOutlawMonsterHouseFloor();
-	  statusData.hidden_stairs_type = GetHiddenStairsType();
-  
-	  if(Constants.SECONDARY_TERRAIN_TYPES[statusData.tileset_id] === SecondaryTerrainType.SECONDARY_TERRAIN_CHASM) 
-	  { 
-		  statusData.has_chasms_as_secondary_terrain = true;
-	  }
-	  else
-	  {
-		  statusData.has_chasms_as_secondary_terrain = false;
-	  }*/
+	statusData.has_chasms_as_secondary_terrain = (Constants.SECONDARY_TERRAIN_TYPES[dungeonGenerationInfo.tileset_id] === SecondaryTerrainType.SECONDARY_TERRAIN_CHASM);
 
 	statusData.stairs_room_index = 0xff;
 	statusData.floor_size = FloorSize.FLOOR_SIZE_LARGE;
 
 	dungeonGenerationInfo.fixed_room_id = floor_props.fixed_room_id;
 
+	statusData.kecleon_shop_chance = GetFinalKecleonShopSpawnChance(floor_props.kecleon_shop_chance);
 	statusData.monster_house_chance = floor_props.monster_house_chance;
-	statusData.kecleon_shop_chance = floor_props.kecleon_shop_chance;
+
+	if(statusData.no_enemy_spawn) {
+		statusData.monster_house_chance = 100;
+	}
+
+	statusData.second_spawn = true;
+
+	statusData.kecleon_shop_min_x = -1;
+	statusData.kecleon_shop_max_x = -1;
+	statusData.kecleon_shop_min_y = -1;
+	statusData.kecleon_shop_max_y = -1;
+
+	ResetFloor();
+
+	dungeonData.enemy_density = IsNormalFloor() ? Math.abs(floor_props.enemy_density) : 0;
+
+	dungeonGenerationInfo.locked_door_opened = false;
+	dungeonGenerationInfo.kecleon_shop_spawned = false;
+
+	dungeonData.n_items = 0;
+
+	dungeonGenerationInfo.hidden_stairs_type = HiddenStairsType.HIDDEN_STAIRS_NONE;
 	statusData.secondary_structures_budget = floor_props.secondary_structures_budget;
-	statusData.hidden_stairs_type = floor_props.hidden_stairs_type;
 
 	let spawn_attempts;
 	for (spawn_attempts = 0; spawn_attempts < 10; spawn_attempts++) {
-		dungeonGenerationInfo.player_spawn_x = -1;
-		dungeonGenerationInfo.player_spawn_y = -1;
-		dungeonGenerationInfo.stairs_spawn_x = -1;
-		dungeonGenerationInfo.stairs_spawn_y = -1;
-		dungeonGenerationInfo.hidden_stairs_spawn_x = -1;
-		dungeonGenerationInfo.hidden_stairs_spawn_y = -1;
+		ResetImportantSpawnPositions(dungeonGenerationInfo);
 
 		let fixed_room = false;
 		let secondary_gen = false;
@@ -4618,7 +5271,7 @@ function GenerateFloor(floor_props: FloorProperties): Tile[][] {
 			if (fixed_room) {
 				// Check for a full-floor fixed room, if this is the case, generation is done.
 				// 0xA5 is the first non-full-floor fixed room ID (which corresponds to Sealed Chambers)
-				if (dungeonGenerationInfo.fixed_room_id > 0 && dungeonGenerationInfo.fixed_room_id < 0xa5) break;
+				if (!IsNotFullFloorFixedRoom(dungeonGenerationInfo.fixed_room_id)) break;
 
 				fixed_room = false;
 			}
@@ -4639,19 +5292,20 @@ function GenerateFloor(floor_props: FloorProperties): Tile[][] {
 			dungeonGenerationInfo.player_spawn_x = -1;
 			dungeonGenerationInfo.player_spawn_y = -1;
 
-			/* TODO: Continue fixed room support
-				  if (dungeonGenerationInfo.fixed_floor_number !== 0) {
-					  // Special handling for fixed rooms
-	  
-					  if (!ProcessFixedRoom(dungeonGenerationInfo.fixed_floor_number, floor_props)) {
-						  fixed_room = true;
-	  
-						  break; //This would actually be a goto skipping layout generation
-					  }
-				  }*/
+			dungeonGenerationInfo.force_create_monster_house = false;
 
-			let grid_size_x = 2; //[r13, #+0x8]
-			let grid_size_y = 2; //[r13, #+0x4]
+			if (dungeonGenerationInfo.fixed_room_id !== 0) {
+				// Special handling for fixed rooms
+	  
+				if (!GenerateFixedRoom(dungeonGenerationInfo.fixed_room_id, floor_props)) {
+					fixed_room = true;
+	  
+					break; //This would actually be a goto skipping layout generation
+				}
+			}
+
+			let grid_size_x = 2;
+			let grid_size_y = 2;
 
 			// Attempt to generate random grid dimensions
 			let attempts = 32;
@@ -4842,11 +5496,48 @@ function GenerateFloor(floor_props: FloorProperties): Tile[][] {
 		}
 	}
 
-	//TODO: Integrate late GenerateFloor operations
+	if(statusData.kecleon_shop_middle_x > -1 && statusData.kecleon_shop_middle_y > -1) {
+		MarkShopkeeperSpawn(statusData.kecleon_shop_middle_x, statusData.kecleon_shop_middle_y, GetKecleonIdToSpawnByFloor(), MonsterBehavior.BEHAVIOR_NORMAL_ENEMY_0x0);
+	}
+
+	if(statusData.kecleon_shop_min_x > -1) {
+		FUN_023427E4(floor_props);
+		dungeonGenerationInfo.kecleon_shop_spawned = true;
+	}
+
+	FlagHallwayJunctions(0,0,FLOOR_MAX_X,FLOOR_MAX_Y);
+
+	if(statusData.has_chasms_as_secondary_terrain) {
+		ConvertSecondaryTerrainToChasms();
+	}
+
+	//Hardcoded check for Chasm Cave, the only dungeon which replaces walls with chasms
+	if(dungeonGenerationInfo.tileset_id >= 0x1A && dungeonGenerationInfo.tileset_id <= 0x1B) {
+		ConvertWallsToChasms();
+	}
+
+	//Unload fixed room data
+	//FUN_0233a630();
 
 	OnCompleteGenerationStep(GenerationStepLevel.GEN_STEP_COMPLETE, MajorGenerationType.GEN_TYPE_GENERATE_FLOOR);
 
 	return dungeonData.list_tiles;
+}
+
+/**
+ * NA: 022DEF38
+ * RunDungeon - A huge function responsible for basically everything regarding a dungeon from start to finish.
+ * 
+ * In dungeon-mystery, this function is being used in an extensively abbreviated manner in order to incorporate additional elements of dungeon generation
+ * that are not included inside GenerateFloor.
+ * 
+ * Traditionally, this function would accept a dungeon_init_data and the Dungeon struct and return an integer value.
+ */
+function RunDungeon(floor_props: FloorProperties) {
+
+	//Setup DungeonGenerationInfo using info via FloorProperties
+
+	return GenerateFloor(floor_props);
 }
 
 /**
@@ -4889,27 +5580,14 @@ export function GenerateDungeon(
 	statusData = new FloorGenerationStatus();
 	dungeonRand = new DungeonRandom();
 
-	if (typeof generation_constants !== 'undefined') {
-		generationConstants = generation_constants;
-	} else {
-		generationConstants = new GenerationConstants();
-	}
-
-	if (typeof advanced_generation_settings !== 'undefined') {
-		advancedGenerationSettings = advanced_generation_settings;
-	} else {
-		advancedGenerationSettings = new AdvancedGenerationSettings();
-	}
+	generationConstants = (typeof generation_constants !== 'undefined') ? generation_constants : new GenerationConstants();
+	advancedGenerationSettings = (typeof advanced_generation_settings !== 'undefined') ? advanced_generation_settings : new AdvancedGenerationSettings();
 
 	if (typeof dungeon_generation_callback !== 'undefined') {
 		dungeonGenerationCallback = dungeon_generation_callback;
 	}
 
-	if (typeof generation_callback_frequency !== 'undefined') {
-		generationCallbackFrequency = generation_callback_frequency;
-	} else {
-		generationCallbackFrequency = GenerationStepLevel.GEN_STEP_COMPLETE;
-	}
+	generationCallbackFrequency = (typeof generation_callback_frequency !== 'undefined') ? generation_callback_frequency : GenerationStepLevel.GEN_STEP_COMPLETE;
 
-	return GenerateFloor(floor_props);
+	return RunDungeon(floor_props);
 }

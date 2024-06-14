@@ -1,5 +1,5 @@
-import { FloorLayout, DungeonObjectiveType, FloorSize, HiddenStairsType } from './enums';
-import { RoomFlags, TerrainFlags, SpawnFlags, MissionDestinationInfo } from './minor_types';
+import { FloorLayout, DungeonObjectiveType, FloorSize, HiddenStairsType, GameId, ShopItemPositions } from './enums';
+import { RoomFlags, TerrainFlags, SpawnFlags, MissionDestinationInfo, SpawnedShopkeeperData } from './minor_types';
 
 /**
  * A Grid Cell refers to a single enclosed tile-space of the dungeon map.
@@ -57,6 +57,7 @@ export class Tile {
 }
 
 /**
+ * NA: Offset 0x286B2 on the Dungeon struct
  * Floor Properties defines many of the key properties for dungeon generation, such as
  * the type of layout, base number of rooms, and floor connectivity.
  *
@@ -78,11 +79,13 @@ export class FloorProperties {
 
 	item_density: number = 0;
 	trap_density: number = 0;
-	floor_number: number = 0;
+	//floor_number: number = 0;
 	fixed_room_id: number = 0;
 	num_extra_hallways: number = 0;
 	buried_item_density: number = 0; //Density of buried items (in walls)
 	secondary_terrain_density: number = 10; //Controls how much secondary terrain is spawned
+
+	shop_item_positions: ShopItemPositions = ShopItemPositions.SHOP_POSITION_0; //0x18: Chance of an item spawning on each tile in a Kecleon shop
 
 	itemless_monster_house_chance: number = 0; //Chance that a monster house will be itemless
 	hidden_stairs_type: HiddenStairsType = HiddenStairsType.HIDDEN_STAIRS_NONE;
@@ -131,13 +134,17 @@ export class FloorGenerationStatus {
 }
 
 /**
+ * NA: 0x40C4 Offset on the Dungeon struct
  * Dungeon Generation Info provides additional information about dungeon generation
  * at runtime.
  */
 export class DungeonGenerationInfo {
 	force_create_monster_house: boolean = false; // 0x0
+	locked_door_opened: boolean = false; // 0x1
+	kecleon_shop_spawned: boolean = false; // 0x2
 	monster_house_room: number = -1; // 0x5
 	hidden_stairs_type: HiddenStairsType = HiddenStairsType.HIDDEN_STAIRS_NONE; // 0x8
+	tileset_id: number = 0; //0x10
 	fixed_room_id: number = 0; // 0x16
 	floor_generation_attempts: number = 0; //0x1A
 	player_spawn_x: number = -1; // 0x8C1C
@@ -155,24 +162,36 @@ export class DungeonGenerationInfo {
  * Holds various key data, as well as the dungeon map: list_tiles
  */
 export class Dungeon {
+	shopkeeper_spawns: SpawnedShopkeeperData[] = new Array(8); // 0x5E0
+	shopkeeper_spawn_count: number = 0; //0x610: Number of valid shopkeeper spawns
+
 	id: number = 1; // 0x748: Current Dungeon ID
 	floor: number = 1; // 0x749: Current floor number
 	rescue_floor: number = 1; // 0x751
 	nonstory_flag: boolean = true; // 0x75C
 	mission_destination: MissionDestinationInfo = new MissionDestinationInfo(); //0x760
+	enemy_density: number = 0; // 0x786
 	dungeon_objective: DungeonObjectiveType = DungeonObjectiveType.OBJECTIVE_NORMAL; // 0x798
+	dungeon_game_version_id: GameId = GameId.GAME_SKY; //0x7CC
+
+	n_items: number = 0; // 0x3FC0 This number is generated, not a property
+	field_0x3fc2: number = 0; // 0x3FC2
+	field_0x3fc3: number = 0; // 0x3FC3
+	traps: number[] = new Array(64); // 0x3FC4
+
 	kecleon_shop_min_x: number = 0; // 0xCD14
 	kecleon_shop_min_y: number = 0; // 0xCD18
 	kecleon_shop_max_x: number = 0; // 0xCD1C
 	kecleon_shop_max_y: number = 0; // 0xCD20
-	num_items: number = 0; // 0x12AFA This number is generated, not a property
+	fixed_room_tiles: Tile[][] = []; // 0xCD60
+
+	list_tiles: Tile[][] = []; // 0xD2E4 This is the dungeon map
+
+	boost_kecleon_shop_spawn_chance: boolean = false; // 0x12B24
+	boost_hidden_stairs_spawn_chance: boolean = false; // 0x12B25
+
 	guaranteed_item_id: number = 0; // 0x2C9E8
 	n_floors_plus_one: number = 4; // 0x2CAF4: One more than the maximum number of floors in the current dungeon
 
-	//field_0x12aa4: boolean = false;
-	//field_0x3fc2: boolean = false;
-
-	list_tiles: Tile[][] = []; //This is the dungeon map
-	fixed_room_tiles: Tile[][] = [];
-	active_traps: number[] = new Array(64);
+	
 }
