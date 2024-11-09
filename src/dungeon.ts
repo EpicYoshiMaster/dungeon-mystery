@@ -2852,7 +2852,7 @@ function GenerateOuterRingFloor(floor_props: FloorProperties) {
 	const cursor_x = dungeonRand.RandInt(grid_size_x);
 	const cursor_y = dungeonRand.RandInt(grid_size_y);
 
-	AssignGridCellConnections(grid, grid_size_x, grid_size_x, cursor_x, cursor_y, floor_props);
+	AssignGridCellConnections(grid, grid_size_x, grid_size_y, cursor_x, cursor_y, floor_props);
 	CreateGridCellConnections(grid, grid_size_x, grid_size_y, list_x, list_y, false);
 
 	EnsureConnectedGrid(grid, grid_size_x, grid_size_y, list_x, list_y);
