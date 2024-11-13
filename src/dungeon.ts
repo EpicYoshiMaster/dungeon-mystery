@@ -3719,7 +3719,6 @@ function GenerateSecondaryTerrainFormations(test_flag: boolean, floor_props: Flo
 				dungeonData.list_tiles[x][y].terrain_flags.f_in_kecleon_shop ||
 				dungeonData.list_tiles[x][y].terrain_flags.f_in_monster_house ||
 				dungeonData.list_tiles[x][y].terrain_flags.f_unbreakable ||
-				dungeonData.list_tiles[x][y].terrain_flags.f_unbreakable ||
 				dungeonData.list_tiles[x][y].spawn_or_visibility_flags.f_stairs
 			) {
 				dungeonData.list_tiles[x][y].terrain_flags.terrain_type = TerrainType.TERRAIN_NORMAL;
