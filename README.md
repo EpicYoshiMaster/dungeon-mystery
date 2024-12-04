@@ -4,8 +4,8 @@
 
 ![dungeon-mystery512x487](https://github.com/EpicYoshiMaster/dungeon-mystery/assets/32598419/8aeb7f74-c97d-473b-943a-115f4c83e015)
 
-Logo by [@sgtmug](https://twitter.com/sergeantmug)
- 
+Logo by [@sgtmug](https://sgtmug.carrd.co/)
+
 dungeon-mystery is a Typescript implementation of Pokémon Mystery Dungeon: Explorers of Sky's dungeon algorithm.
 
 This package is the main code behind [Pokémon Dungeoneer](https://github.com/EpicYoshiMaster/pokemon-dungeoneer), a web tool for generating and visualizing PMD layouts.
@@ -42,6 +42,18 @@ This project could not exist without the amazing work by members of the communit
 [Map generation](https://docs.google.com/document/d/1HuJIEOtTYCtSHK6R-sp4LC2gk1RDL_mfoFL6Qn_wdkE/edit) - Document by End45 detailing the map generation process
 
 [Dungeon data](https://docs.google.com/document/d/1UfiFz4xAPtGd-1X2JNE0Jy2z-BLkze1PE4Fo9u-QeYo/edit) - Document by End45 detailing how dungeon-related data is organized and structured
+
+## Images
+
+These images use the built-in `CreateMapString` function which builds a representation of the map into a simplified subset of characters.
+
+![dungeon-mystery Beetle Layout Example](./screenshots/dungeonmysterybeetle.png)
+
+An example layout using `FloorLayout.LAYOUT_BEETLE`.
+
+![dungeon-mystery Large Layout with Water Example](./screenshots/dungeonmysterylargewater.png)
+
+An example layout using `FloorLayout.LAYOUT_LARGE` with secondary terrain and structures enabled.
 
 ## Support
 
